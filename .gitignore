@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+# Results outputs
+*.txt
+*.dat
+!CMakeLists.txt
+
+# Build derectory
+build
