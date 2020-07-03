@@ -23,18 +23,17 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
 
 
 int main(int argc, char *argv[]) {
-  // mpiv.local_id_ is a local rank in the local communicator mpiv.local_comm_.
-  MPIV mpiv;
+  int numprocs, myid, multiple;
   MPI_Status status;
   MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &mpiv.numprocs_);
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpiv.myid_);
+  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   // Check command line arguments.
   try {
     if (argc != 5) throw 0;
   }
   catch (int err_status) {
-    if (mpiv.myid_ == 0) {
+    if (myid == 0) {
       std::cerr
           << "ERROR: Unexpected number of command line arguments!\n"
           << "       Expect 4 arguments, " << argc - 1 << " were provided.\n"
@@ -48,21 +47,21 @@ int main(int argc, char *argv[]) {
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  // mpiv.multiple_ is # of walkers per energy window.
-  mpiv.multiple_ = atoi(argv[2]);
+  // mpiv.multiple() is # of walkers per energy window.
+  multiple = atoi(argv[2]);
   try {
     // "numprocs" must be a multiple of "multiple".
-    if (mpiv.numprocs_%mpiv.multiple_ != 0) throw 0;
+    if (numprocs%multiple != 0) throw 0;
   }
   catch (int err_status) {
-    if (mpiv.myid_ == 0) {
+    if (myid == 0) {
       std::cerr
           << "ERROR: # of processes must be a multiple of the second command line argument.\n"
           << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  mpiv.num_window_mod2_ = (mpiv.numprocs_/mpiv.multiple_)%2;
+  MPIV mpiv(numprocs, myid, multiple);
   // Create new groups and communicators for each energy window.
   mpiv.create_local_communicator();
   // Get the local id (in the local communicators).
@@ -78,8 +77,8 @@ int main(int argc, char *argv[]) {
   double lnf = 1.0;
   double lnfmin = 1e-8;
   double flatness = 0.95;
-  std::vector<double> ln_dos(model.energies_.size(), 0.0);
-  std::vector<int> histogram(model.energies_.size(), 0);
+  std::vector<double> ln_dos(model.num_values(), 0.0);
+  std::vector<int> histogram(model.num_values(), 0);
   // Replica exchange Wang-Landau (REWL) parameters.
   bool is_exchange_accepted;
   double lnf_slowest = lnf;
@@ -88,17 +87,15 @@ int main(int argc, char *argv[]) {
   int swap_count_down = swap_every;
   int exchange_pattern = 1; // 0 or 1.
   int partner;
-  int energy_min_global = model.energies_.front();
-  int energy_max_global = model.energies_.back();
-  double energy_width = (energy_max_global-energy_min_global)
-      /(1.0 + ((double)(mpiv.numprocs_/mpiv.multiple_) - 1.0)*(1.0-overlap));
-  double energy_min_window = energy_min_global +
-      (mpiv.myid_/mpiv.multiple_) * (1.0-overlap) * energy_width;
-  double energy_max_window = energy_min_window + energy_width;
+  double energy_width = (model.max_value()-model.min_value())/
+      (1.0 + ((double)(mpiv.numprocs()/mpiv.multiple()) - 1.0)*(1.0-overlap));
+  double energy_min_window = model.min_value()+
+      (mpiv.myid()/mpiv.multiple())*(1.0-overlap)*energy_width;
+  double energy_max_window = energy_min_window+energy_width;
   int imin = model.get_index(energy_min_window, "ceil");
   int imax = model.get_index(energy_max_window);
-  if (mpiv.myid_ >= mpiv.numprocs_-mpiv.multiple_) {
-    imax = model.energies_.size()-1;
+  if (mpiv.myid() >= mpiv.numprocs()-mpiv.multiple()) {
+    imax = model.num_values()-1;
   }
   int isew =
       model.get_index(energy_min_window+energy_width*(1-overlap), "ceil");
@@ -111,11 +108,11 @@ int main(int argc, char *argv[]) {
   // Other variables.
   int energy_tmp;
   bool is_flat;
-  irandom::MTRandom random(atoi(argv[4])+mpiv.myid_);
+  irandom::MTRandom random(atoi(argv[4])+mpiv.myid());
   // Initiate configuration.
-  while ((model.energy_ <
+  while ((model.value() <
       (energy_min_window + (energy_max_window-energy_min_window)/3)) ||
-      (model.energy_ >
+      (model.value() >
       (energy_min_window + 2*(energy_max_window-energy_min_window)/3))) {
     energy_tmp = model.Propose(random);
     model.Update();
@@ -129,13 +126,13 @@ int main(int argc, char *argv[]) {
         if ((energy_tmp >= energy_min_window) &&
             (energy_tmp <= ceil(energy_max_window)) &&
             (std::log(random.Random()) <
-            ln_dos[model.get_index(model.energy_)] -
+            ln_dos[model.get_index(model.value())] -
             ln_dos[model.get_index(energy_tmp)])) {
           // Accept.
           model.Update();
         }
-        ln_dos[model.get_index(model.energy_)] += lnf;
-        histogram[model.get_index(model.energy_)] += 1;
+        ln_dos[model.get_index(model.value()] += lnf;
+        histogram[model.get_index(model.value())] += 1;
       } // End 1 sweep.
       --swap_count_down;
       // Start RE.
@@ -148,7 +145,7 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
         if (partner != -1) {
           // Statistics.
-          if (partner > mpiv.local_id_[exchange_pattern]) ++try_right;
+          if (partner > mpiv.local_id(exchange_pattern)) ++try_right;
           else ++try_left;
           // Replica exchange.
           is_exchange_accepted = replica_exchange(&energy_tmp, partner,
@@ -156,18 +153,18 @@ int main(int argc, char *argv[]) {
               energy_max_window);
           if (is_exchange_accepted) {
             // Exchange configuration.
-            MPI_Sendrecv_replace(&model.spin_config_[0], 
-                model.spin_config_.size(), MPI_INT,partner, 1, partner, 1,
-                mpiv.local_comm_[mpiv.comm_id_], &status);
+            MPI_Sendrecv_replace(&model.config(0), model.config().size(),
+                MPI_INT,partner, 1, partner, 1, mpiv.local_comm(mpiv.comm_id()),
+                &status);
             // Update energy.
-            model.energy_ = energy_tmp;
+            model.value() = energy_tmp;
             // Statistics.
-            if (partner>mpiv.local_id_[exchange_pattern]) ++exchange_right;
+            if (partner>mpiv.local_id(exchange_pattern)) ++exchange_right;
             else ++exchange_left;
           }
         }
-        ln_dos[model.get_index(model.energy_)] += lnf;
-        histogram[model.get_index(model.energy_)] += 1;
+        ln_dos[model.get_index(model.value())] += lnf;
+        histogram[model.get_index(model.value())] += 1;
       } // End RE.
     }
     // Check flatness.
@@ -181,14 +178,14 @@ int main(int argc, char *argv[]) {
     // Check progress from all other windows.
     MPI_Allreduce(&lnf, &lnf_slowest, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     ////
-    if (mpiv.myid_ == 1) {
+    if (mpiv.myid() == 1) {
       std::cout << "lnf_slowest : " << lnf_slowest << std::endl;
     }
     ////
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
   // Output.
   std::string filename =
-      "./rawdata/lngE_proc" + std::to_string(mpiv.myid_) + ".dat";
+      "./rawdata/lngE_proc" + std::to_string(mpiv.myid()) + ".dat";
   std::ofstream ofs(filename, std::ios::out);
   ofs << "# dim: " << dim << ", length: " << length << "\n";
   ofs << "# energy \t # lngE\n";
@@ -196,7 +193,7 @@ int main(int argc, char *argv[]) {
   ofs << "# condition_value: " << condition_value << "\n";
   ofs << "# sewing_point: " << isew << "\n";
   for (int i=imin; i<=imax; ++i) {
-    ofs << model.energies_[i] << "\t" << ln_dos[i] << "\n";
+    ofs << model.values(i) << "\t" << ln_dos[i] << "\n";
   }
   ofs << std::endl;
   MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
@@ -207,16 +204,16 @@ int main(int argc, char *argv[]) {
 
 int generate_partner(irandom::MTRandom &random, int exchange_pattern,
     const MPIV &mpiv) {
-  std::vector<int> partner_list(2*mpiv.multiple_);
+  std::vector<int> partner_list(2*mpiv.multiple());
   int partner;
   // 'head-node' in the energy window determines pairs of flippariners.
-  if (mpiv.local_id_[exchange_pattern] == 0) {
-    int choose_from = mpiv.multiple_;
+  if (mpiv.local_id(exchange_pattern) == 0) {
+    int choose_from = mpiv.multiple();
     int select;
-    std::vector<int> lib_re(mpiv.multiple_);
-    for (int i=0; i<mpiv.multiple_; ++i) lib_re[i] = mpiv.multiple_+i;
+    std::vector<int> lib_re(mpiv.multiple());
+    for (int i=0; i<mpiv.multiple(); ++i) lib_re[i] = mpiv.multiple()+i;
 
-    for (int i=0; i<mpiv.multiple_; ++i) {
+    for (int i=0; i<mpiv.multiple(); ++i) {
       select = random.Randrange(choose_from);
       partner_list[i] = lib_re[select];
       partner_list[lib_re[select]] = i;
@@ -226,9 +223,9 @@ int generate_partner(irandom::MTRandom &random, int exchange_pattern,
   }
   // At this point, every walker has a swap partner assigned,
   // now they must be communicated.
-  if (mpiv.comm_id_ != -1) {
+  if (mpiv.comm_id() != -1) {
     MPI_Scatter(&partner_list[0], 1, MPI_INT, &partner, 1, MPI_INT, 0,
-        mpiv.local_comm_[mpiv.comm_id_]);
+        mpiv.local_comm(mpiv.comm_id()));
   } else {
     partner = -1;
   }
@@ -258,23 +255,23 @@ bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
   if ((double)min_histo < flatness*average) my_flat = false;
   // Now talk to all the other walkers in the energy window.
   // (! this whole thing can be reduced to an MPI_Allreduce once there are separate communicators for energy windows !)
-  if (mpiv.myid_%mpiv.multiple_ == 0) {
+  if (mpiv.myid()%mpiv.multiple() == 0) {
     // 'root' in energy window, receive individual flatnesses.
-    for (int i=1; i<mpiv.multiple_; ++i) {
-      MPI_Recv(&other_flat, 1, MPI_CXX_BOOL, mpiv.myid_+i, 66, MPI_COMM_WORLD,
+    for (int i=1; i<mpiv.multiple(); ++i) {
+      MPI_Recv(&other_flat, 1, MPI_CXX_BOOL, mpiv.myid()+i, 66, MPI_COMM_WORLD,
           &status);
       my_flat *= other_flat;
     }
-    for (int i=1; i<mpiv.multiple_; ++i) {
+    for (int i=1; i<mpiv.multiple(); ++i) {
       // Let everybody know.
-      MPI_Send(&my_flat, 1, MPI_CXX_BOOL, mpiv.myid_+i, 88, MPI_COMM_WORLD);
+      MPI_Send(&my_flat, 1, MPI_CXX_BOOL, mpiv.myid()+i, 88, MPI_COMM_WORLD);
     }
   } else {
     // Send individual flatness and receive 'merged' flatness.
-    MPI_Send(&my_flat, 1, MPI_CXX_BOOL, mpiv.myid_-(mpiv.myid_%mpiv.multiple_),
+    MPI_Send(&my_flat, 1, MPI_CXX_BOOL, mpiv.myid()-(mpiv.myid()%mpiv.multiple()),
         66, MPI_COMM_WORLD);
     MPI_Recv(&other_flat, 1, MPI_CXX_BOOL,
-        mpiv.myid_-(mpiv.myid_%mpiv.multiple_), 88, MPI_COMM_WORLD, &status);
+        mpiv.myid()-(mpiv.myid()%mpiv.multiple()), 88, MPI_COMM_WORLD, &status);
     my_flat = other_flat;  // Replace individual flatness by merged.
   }
   return my_flat;
@@ -290,21 +287,21 @@ bool replica_exchange(int *energy_partner ,int partner, int exchange_pattern,
   double my_frac, other_frac;
   bool is_exchange_accepted;
   // Get the energy from my exchange partner.
-  *energy_partner = model.energy_;
+  *energy_partner = model.value();
   MPI_Sendrecv_replace(energy_partner, 1, MPI_INT, partner, 1, partner, 1,
-      mpiv.local_comm_[mpiv.comm_id_], &status);
+      mpiv.local_comm(mpiv.comm_id()), &status);
   if ((*energy_partner>energy_max_window) ||
       (*energy_partner<energy_min_window)) {
     my_frac = -1.0;
   } else {
     my_frac = std::exp(ln_dos[model.get_index(*energy_partner)] -
-        ln_dos[model.get_index(model.energy_)]);
+        ln_dos[model.get_index(model.value())]);
   }
-  if (mpiv.local_id_[exchange_pattern]<mpiv.multiple_) {
+  if (mpiv.local_id(exchange_pattern)<mpiv.multiple()) {
     // Receiver calculate combined exchange probability.
     // Get my partner's part of the exchange probability.
     MPI_Recv(&other_frac, 1, MPI_DOUBLE, partner, 2,
-        mpiv.local_comm_[mpiv.comm_id_], &status);
+        mpiv.local_comm(mpiv.comm_id()), &status);
     // Calculate combined exchange probability and do exchange trial.
     if ((my_frac>0.0)&&(other_frac>0.0)&&
         (random.Random()<my_frac*other_frac)) {
@@ -314,13 +311,13 @@ bool replica_exchange(int *energy_partner ,int partner, int exchange_pattern,
       is_exchange_accepted = false;
     }
     MPI_Send(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
-        mpiv.local_comm_[mpiv.comm_id_]);
+        mpiv.local_comm(mpiv.comm_id()));
   } else {
     // Send my part of exchange probability and await decision.
     MPI_Send(&my_frac, 1, MPI_DOUBLE, partner, 2,
-        mpiv.local_comm_[mpiv.comm_id_]);
+        mpiv.local_comm(mpiv.comm_id()));
     MPI_Recv(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
-        mpiv.local_comm_[mpiv.comm_id_], &status);
+        mpiv.local_comm(mpiv.comm_id())), &status);
   } // Now all process know whether the replica exchange will be executed.
   return is_exchange_accepted;
 }
@@ -331,24 +328,24 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
   MPI_Status status;
   std::vector<double> &ln_dos(*ln_dos_ptr);
   std::vector<double> ln_dos_buf = ln_dos;
-  if (mpiv.myid_%mpiv.multiple_ == 0) {
+  if (mpiv.myid()%mpiv.multiple() == 0) {
     // 'root' in energy window, receive individual g(E) and send merged g(E).
-    for (int i=1; i<mpiv.multiple_; ++i) {
-      MPI_Recv(&ln_dos_buf[0], (int)ln_dos.size(), MPI_DOUBLE, mpiv.myid_+i,
+    for (int i=1; i<mpiv.multiple(); ++i) {
+      MPI_Recv(&ln_dos_buf[0], (int)ln_dos.size(), MPI_DOUBLE, mpiv.myid()+i,
           77, MPI_COMM_WORLD, &status);
       for (int j=0; j<ln_dos.size(); ++j) ln_dos[j] += ln_dos_buf[j];
     }
-    for (int i=0; i<ln_dos.size(); ++i) ln_dos[i] /= mpiv.multiple_;
-    for (int i=1; i<mpiv.multiple_; ++i) {
-      MPI_Send(&ln_dos[0], (int)ln_dos.size(), MPI_DOUBLE, mpiv.myid_+i, 99,
+    for (int i=0; i<ln_dos.size(); ++i) ln_dos[i] /= mpiv.multiple();
+    for (int i=1; i<mpiv.multiple(); ++i) {
+      MPI_Send(&ln_dos[0], (int)ln_dos.size(), MPI_DOUBLE, mpiv.myid()+i, 99,
           MPI_COMM_WORLD);
     }
   } else {
     // Send individual g(E) and receive merged g(E).
     MPI_Send(&ln_dos[0], (int)ln_dos.size(), MPI_DOUBLE,
-        mpiv.myid_-(mpiv.myid_%mpiv.multiple_), 77, MPI_COMM_WORLD);
+        mpiv.myid()-(mpiv.myid()%mpiv.multiple()), 77, MPI_COMM_WORLD);
     MPI_Recv(&ln_dos[0], (int)ln_dos.size(), MPI_DOUBLE,
-        mpiv.myid_-(mpiv.myid_%mpiv.multiple_), 99, MPI_COMM_WORLD,
+        mpiv.myid()-(mpiv.myid()%mpiv.multiple()), 99, MPI_COMM_WORLD,
         &status);
   }
 }

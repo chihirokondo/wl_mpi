@@ -33,12 +33,19 @@ class FerroIsing {
     energy_ = energy_proposed_;
     spin_config_[site_] -= 2*spin_config_[site_];
   }
-  std::vector<int> energies_;
-  std::vector<int> spin_config_;
-  int energy_;
+  // Gettor.
+  int values(int index) {return energies_[index];}
+  size_t num_values() {return energies_.size();}
+  int min_value() {return energies_.front();}
+  int max_value() {return energies_.back();}
+  std::vector<int> config() {return spin_config_;}
+  int config(int index) {return spin_config_[index];}
+  int value() {return energy_;}
  private:
   const lattice::graph lat_;
-  int energy_proposed_, site_;
+  int energy_proposed_, site_, energy_;
+  std::vector<int> energies_;
+  std::vector<int> spin_config_;
 };
 
 
