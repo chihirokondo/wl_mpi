@@ -1,0 +1,17 @@
+# dim: 2, length: 4
+# energy 	 # lngE
+# constraint_condition_type: sum
+# constraint_condition_value: 65536
+# sewing_point: 3
+-32	1656.92
+-28	0
+-24	1659.67
+-20	1660.37
+-16	1662.24
+-12	1663.61
+-8	1664.98
+-4	1665.68
+0	1666.08
+4	1665.67
+8	1664.96
+
