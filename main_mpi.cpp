@@ -19,7 +19,7 @@ bool replica_exchange(int *energy_partner, int partner, int exchange_pattern,
     const std::vector<double> &ln_dos, const FerroIsing &model,
     const MPIV &mpiv, irandom::MTRandom &random, double energy_min_window,
     double energy_max_window);
-void merge_ln_dos(std::vector<double> &ln_dos, const MPIV &mpiv);
+void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
 
 
 int main(int argc, char *argv[]) {
@@ -50,10 +50,6 @@ int main(int argc, char *argv[]) {
   }
   // mpiv.multiple_ is # of walkers per energy window.
   mpiv.multiple_ = atoi(argv[2]);
-  // Create new groups and communicators for each energy window.
-  mpiv.create_local_communicator();
-  // Get the local id (in the local communicators).
-  mpiv.set_local_id();
   try {
     // "numprocs" must be a multiple of "multiple".
     if (mpiv.numprocs_%mpiv.multiple_ != 0) throw 0;
@@ -78,6 +74,11 @@ int main(int argc, char *argv[]) {
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
+  mpiv.num_window_mod2_ = (mpiv.numprocs_/mpiv.multiple_)%2;
+  // Create new groups and communicators for each energy window.
+  mpiv.create_local_communicator();
+  // Get the local id (in the local communicators).
+  mpiv.set_local_id();
   // Model dependent variables.
   int dim = 2;
   int length = 4;
@@ -179,7 +180,7 @@ int main(int argc, char *argv[]) {
         }
         ln_dos[model.get_index(model.energy_)] += lnf;
         histogram[model.get_index(model.energy_)] += 1;
-      }
+      } // End RE.
     }
     // Check flatness.
     is_flat = check_histoflat(imin, imax, histogram, flatness, mpiv);
@@ -187,7 +188,7 @@ int main(int argc, char *argv[]) {
       lnf /= 2.0;
       for (int &i : histogram) i = 0;
       // Merge g(E) estimators from multiple walkers in the same energy window.
-      merge_ln_dos(ln_dos, mpiv);
+      merge_ln_dos(&ln_dos, mpiv);
     }
     // Check progress from all other windows.
     MPI_Allreduce(&lnf, &lnf_slowest, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -199,7 +200,7 @@ int main(int argc, char *argv[]) {
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
   // Output.
   std::string filename =
-      "./mpi_rawdata/lngE_proc" + std::to_string(mpiv.myid_) + ".dat";
+      "./rawdata/lngE_proc" + std::to_string(mpiv.myid_) + ".dat";
   std::ofstream ofs(filename, std::ios::out);
   ofs << "# dim: " << dim << ", length: " << length << "\n";
   ofs << "# energy \t # lngE\n";
@@ -219,7 +220,7 @@ int main(int argc, char *argv[]) {
 int generate_partner(irandom::MTRandom &random, int exchange_pattern,
     const MPIV &mpiv) {
   std::vector<int> partner_list(2*mpiv.multiple_);
-  int partner = -1;
+  int partner;
   // 'head-node' in the energy window determines pairs of flippariners.
   if (mpiv.local_id_[exchange_pattern] == 0) {
     int choose_from = mpiv.multiple_;
@@ -237,13 +238,11 @@ int generate_partner(irandom::MTRandom &random, int exchange_pattern,
   }
   // At this point, every walker has a swap partner assigned,
   // now they must be communicated.
-  if ((exchange_pattern==0)&&(mpiv.myid_<(mpiv.numprocs_-mpiv.multiple_))) {
+  if (mpiv.comm_id_ != -1) {
     MPI_Scatter(&partner_list[0], 1, MPI_INT, &partner, 1, MPI_INT, 0,
         mpiv.local_comm_[mpiv.comm_id_]);
-  }
-  if ((exchange_pattern==1)&&(mpiv.myid_>=mpiv.multiple_)) {
-    MPI_Scatter(&partner_list[0], 1, MPI_INT, &partner, 1, MPI_INT, 0,
-        mpiv.local_comm_[mpiv.comm_id_]);
+  } else {
+    partner = -1;
   }
   return partner;
 }
@@ -340,8 +339,9 @@ bool replica_exchange(int *energy_partner ,int partner, int exchange_pattern,
 
 
 // Violate coding rule!!
-void merge_ln_dos(std::vector<double> &ln_dos, const MPIV &mpiv) {
+void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
   MPI_Status status;
+  std::vector<double> &ln_dos(*ln_dos_ptr);
   std::vector<double> ln_dos_buf = ln_dos;
   if (mpiv.myid_%mpiv.multiple_ == 0) {
     // 'root' in energy window, receive individual g(E) and send merged g(E).

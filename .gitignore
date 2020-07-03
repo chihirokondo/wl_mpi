@@ -34,7 +34,11 @@
 # Results outputs
 *.txt
 *.dat
-!CMakeLists.txt
 
 # Build derectory
 build
+
+# others
+!CMakeLists.txt
+.vscode
+.DS_Store
