@@ -53,24 +53,12 @@ int main(int argc, char *argv[]) {
   try {
     // "numprocs" must be a multiple of "multiple".
     if (mpiv.numprocs_%mpiv.multiple_ != 0) throw 0;
-    // At the moment, the code works only for an _odd_ number of energy windows.
-    // (to make the RE in windows at the outside consistent).
-    if ((mpiv.numprocs_/mpiv.multiple_) % 2 == 0) throw 1;
   }
   catch (int err_status) {
     if (mpiv.myid_ == 0) {
-      if (err_status == 0) {
-        std::cerr
-            << "ERROR: # of processes must be a multiple of the second command line argument.\n"
-            << std::endl;
-      }
-      if (err_status == 1) {
-        std::cerr
-            << "ERROR: Even number of energy windows ("
-            << mpiv.numprocs_/mpiv.multiple_
-            << ") requested. Please request an odd number of energy windows.\n"
-            << std::endl;
-      }
+      std::cerr
+          << "ERROR: # of processes must be a multiple of the second command line argument.\n"
+          << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
