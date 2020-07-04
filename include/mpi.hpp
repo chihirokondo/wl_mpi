@@ -12,14 +12,14 @@ class MPIV {
   void set_local_id();
   void set_comm_id(int exchange_pattern);
   // Gettor.
-  int numprocs() {return numprocs_;}
-  int myid() {return myid_;}
-  int multiple() {return multiple_;}
-  int comm_id() {return comm_id_;}
-  int local_id(int index) {return local_id_[index];}
-  MPI_Comm local_comm(int index) {return local_comm_[index];}
+  int numprocs() const {return numprocs_;}
+  int myid() const {return myid_;}
+  int multiple() const {return multiple_;}
+  int comm_id() const {return comm_id_;}
+  int local_id(int index) const {return local_id_[index];}
+  MPI_Comm local_comm(int index) const {return local_comm_[index];}
  private:
-  const int numprocs_, myid_, multiple_;
+  const int numprocs_, myid_, multiple_, num_window_mod2_;
   int comm_id_;
   std::vector<int> local_id_;
   std::vector<MPI_Comm> local_comm_;
@@ -29,7 +29,8 @@ class MPIV {
 MPIV::MPIV(int numprocs, int myid, int multiple)
     : numprocs_(numprocs),
       myid_(myid),
-      multiple_(multiple) {}
+      multiple_(multiple),
+      num_window_mod2_((numprocs/multiple)%2) {}
 
 
 void MPIV::create_local_communicator() {

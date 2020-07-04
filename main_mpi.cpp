@@ -107,6 +107,7 @@ int main(int argc, char *argv[]) {
   int exchange_left = 0;
   // Other variables.
   int energy_tmp;
+  std::vector<int> config_buf;
   bool is_flat;
   irandom::MTRandom random(atoi(argv[4])+mpiv.myid());
   // Initiate configuration.
@@ -131,7 +132,7 @@ int main(int argc, char *argv[]) {
           // Accept.
           model.Update();
         }
-        ln_dos[model.get_index(model.value()] += lnf;
+        ln_dos[model.get_index(model.value())] += lnf;
         histogram[model.get_index(model.value())] += 1;
       } // End 1 sweep.
       --swap_count_down;
@@ -153,11 +154,12 @@ int main(int argc, char *argv[]) {
               energy_max_window);
           if (is_exchange_accepted) {
             // Exchange configuration.
-            MPI_Sendrecv_replace(&model.config(0), model.config().size(),
+            config_buf = model.config();
+            MPI_Sendrecv_replace(&config_buf[0], config_buf.size(),
                 MPI_INT,partner, 1, partner, 1, mpiv.local_comm(mpiv.comm_id()),
                 &status);
-            // Update energy.
-            model.value() = energy_tmp;
+            // Update.
+            model.Update(energy_tmp, config_buf);
             // Statistics.
             if (partner>mpiv.local_id(exchange_pattern)) ++exchange_right;
             else ++exchange_left;
@@ -317,7 +319,7 @@ bool replica_exchange(int *energy_partner ,int partner, int exchange_pattern,
     MPI_Send(&my_frac, 1, MPI_DOUBLE, partner, 2,
         mpiv.local_comm(mpiv.comm_id()));
     MPI_Recv(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
-        mpiv.local_comm(mpiv.comm_id())), &status);
+        mpiv.local_comm(mpiv.comm_id()), &status);
   } // Now all process know whether the replica exchange will be executed.
   return is_exchange_accepted;
 }
@@ -335,7 +337,13 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
           77, MPI_COMM_WORLD, &status);
       for (int j=0; j<ln_dos.size(); ++j) ln_dos[j] += ln_dos_buf[j];
     }
-    for (int i=0; i<ln_dos.size(); ++i) ln_dos[i] /= mpiv.multiple();
+    double mean = 0;
+    for (int i=0; i<ln_dos.size(); ++i) {
+      ln_dos[i] /= mpiv.multiple();
+      mean = ln_dos[i];
+    }
+    mean /= ln_dos.size();
+    for (double &ln_dos_i : ln_dos) ln_dos_i -= mean;
     for (int i=1; i<mpiv.multiple(); ++i) {
       MPI_Send(&ln_dos[0], (int)ln_dos.size(), MPI_DOUBLE, mpiv.myid()+i, 99,
           MPI_COMM_WORLD);
