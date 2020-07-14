@@ -180,8 +180,10 @@ int main(int argc, char *argv[]) {
     // Check progress from all other windows.
     MPI_Allreduce(&lnf, &lnf_slowest, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     ////
-    if (mpiv.myid() == 1) {
-      std::cout << "lnf_slowest : " << lnf_slowest << std::endl;
+    {
+      if (mpiv.myid() == 1) {
+        std::cout << "lnf_slowest : " << lnf_slowest << std::endl;
+      }
     }
     ////
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
@@ -325,7 +327,6 @@ bool replica_exchange(int *energy_partner ,int partner, int exchange_pattern,
 }
 
 
-// Violate coding rule!!
 void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
   MPI_Status status;
   std::vector<double> &ln_dos(*ln_dos_ptr);
@@ -337,13 +338,21 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
           77, MPI_COMM_WORLD, &status);
       for (int j=0; j<ln_dos.size(); ++j) ln_dos[j] += ln_dos_buf[j];
     }
-    double mean = 0;
+    int num_bins = 0;
+    double mean = 0.0;
     for (int i=0; i<ln_dos.size(); ++i) {
       ln_dos[i] /= mpiv.multiple();
-      mean = ln_dos[i];
+      mean += ln_dos[i];
+      if (ln_dos[i] != 0.0) {
+        ++num_bins;
+      }
     }
-    mean /= ln_dos.size();
-    for (double &ln_dos_i : ln_dos) ln_dos_i -= mean;
+    mean /= num_bins;
+    for (double &ln_dos_i : ln_dos) {
+      if (ln_dos_i != 0.0) {
+        ln_dos_i -= mean;
+      }
+    }
     for (int i=1; i<mpiv.multiple(); ++i) {
       MPI_Send(&ln_dos[0], (int)ln_dos.size(), MPI_DOUBLE, mpiv.myid()+i, 99,
           MPI_COMM_WORLD);
