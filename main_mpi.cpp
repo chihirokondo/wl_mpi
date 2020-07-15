@@ -28,6 +28,18 @@ int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+  try {
+    if (numprocs <= 2) throw 0;
+  }
+  catch (int err_status) {
+    if (myid == 0) {
+      std::cerr
+          << "ERROR: Few number of processes!\n"
+          << "# of processes must be greater than 2."
+          << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
   // Check command line arguments.
   try {
     if (argc != 5) throw 0;
