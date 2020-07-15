@@ -200,18 +200,21 @@ int main(int argc, char *argv[]) {
     ////
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
   // Output.
-  std::string filename =
-      "./rawdata/lngE_proc" + std::to_string(mpiv.myid()) + ".dat";
-  std::ofstream ofs(filename, std::ios::out);
-  ofs << "# dim: " << dim << ", length: " << length << "\n";
-  ofs << "# energy \t # lngE\n";
-  ofs << "# condition_type: " << "sum" << "\n";
-  ofs << "# condition_value: " << condition_value << "\n";
-  ofs << "# sewing_point: " << isew << "\n";
-  for (int i=imin; i<=imax; ++i) {
-    ofs << model.values(i) << "\t" << ln_dos[i] << "\n";
+  merge_ln_dos(&ln_dos, mpiv);
+  if (mpiv.myid()%mpiv.multiple() == 0) {
+    std::string filename = "./rawdata/lngE_proc" +
+        std::to_string(mpiv.myid()/mpiv.multiple()) + ".dat";
+    std::ofstream ofs(filename, std::ios::out);
+    ofs << "# dim: " << dim << ", length: " << length << "\n";
+    ofs << "# energy \t # lngE\n";
+    ofs << "# condition_type: " << "sum" << "\n";
+    ofs << "# condition_value: " << condition_value << "\n";
+    ofs << "# sewing_point: " << isew << "\n";
+    for (int i=imin; i<=imax; ++i) {
+      ofs << model.values(i) << "\t" << ln_dos[i] << "\n";
+    }
+    ofs << std::endl;
   }
-  ofs << std::endl;
   MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   MPI_Finalize();
   return 0;
