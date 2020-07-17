@@ -2,6 +2,7 @@
 #include <mpi.h>
 #include <cmath>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -212,7 +213,8 @@ int main(int argc, char *argv[]) {
     ofs << "# number_of_windows: " << mpiv.numprocs()/mpiv.multiple() << "\n";
     ofs << "# energy \t # lngE\n";
     for (int i=imin; i<=imax; ++i) {
-      ofs << model.values(i) << "\t" << ln_dos[i] << "\n";
+      ofs << model.values(i) << "\t"
+          << std::scientific << std::setprecision(15) << ln_dos[i] << "\n";
     }
     ofs << std::endl;
   }

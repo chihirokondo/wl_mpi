@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cmath>
 #include <string>
@@ -66,8 +67,10 @@ int main() {
   ofstream ofs("../final_dos.dat", ios::out);
   ofs << data.info() << "\n";
   ofs << "# energy \t # density of states\n";
+  ofs << scientific << setprecision(15);
   for (int i=0; i<dos.size(); ++i) {
-    ofs << data.energy(i) << "\t" << dos[i] << "\n";
+    ofs << data.energy(i) << "\t";
+    ofs << dos[i] << "\n";
   }
   ofs << endl;
 
