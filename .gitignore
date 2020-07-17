@@ -35,8 +35,10 @@
 *.txt
 *.dat
 
-# Build derectory
-build
+# cmake
+CMakeFiles
+Makefile
+*.cmake
 
 # others
 !CMakeLists.txt
