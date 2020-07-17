@@ -206,10 +206,11 @@ int main(int argc, char *argv[]) {
         std::to_string(mpiv.myid()/mpiv.multiple()) + ".dat";
     std::ofstream ofs(filename, std::ios::out);
     ofs << "# dim: " << dim << ", length: " << length << "\n";
-    ofs << "# energy \t # lngE\n";
     ofs << "# condition_type: " << "sum" << "\n";
     ofs << "# condition_value: " << condition_value << "\n";
     ofs << "# sewing_point: " << isew << "\n";
+    ofs << "# number_of_windows: " << mpiv.numprocs()/mpiv.multiple() << "\n";
+    ofs << "# energy \t # lngE\n";
     for (int i=imin; i<=imax; ++i) {
       ofs << model.values(i) << "\t" << ln_dos[i] << "\n";
     }
