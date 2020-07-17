@@ -29,18 +29,6 @@ int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-  try {
-    if (numprocs <= 2) throw 0;
-  }
-  catch (int err_status) {
-    if (myid == 0) {
-      std::cerr
-          << "ERROR: Few number of processes!\n"
-          << "# of processes must be greater than 2."
-          << std::endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
   // Check command line arguments.
   try {
     if (argc != 5) throw 0;
@@ -52,15 +40,16 @@ int main(int argc, char *argv[]) {
           << "       Expect 4 arguments, " << argc - 1 << " were provided.\n"
           << "Syntax: ./a.out [arg1] [arg2] [arg3] [arg4] \n\n"
           << "Please provide the following command line arguments:\n"
-          << "1. Overlap between consecutive windows. [double, 0 <= overlap <= 1]\n"
-          << "2. Number of walkers per energy subwindow. [integer]\n"
-          << "3. Number of Monte Carlo steps between replica exchange. [integer]\n"
-          << "4. Random number seed. [integer]\n"
-          << std::endl;
+          << "1. Overlap between consecutive windows."
+          << " [double, 0 <= overlap <= 1]\n"
+          << "2. Number of walkers per window. [integer]\n"
+          << "3. Number of Monte Carlo steps between replica exchange."
+          << " [integer]\n"
+          << "4. Random number seed. [integer]\n" << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  // mpiv.multiple() is # of walkers per energy window.
+  // mpiv.multiple() is # of walkers per window.
   multiple = atoi(argv[2]);
   try {
     // "numprocs" must be a multiple of "multiple".
@@ -69,21 +58,24 @@ int main(int argc, char *argv[]) {
   catch (int err_status) {
     if (myid == 0) {
       std::cerr
-          << "ERROR: # of processes must be a multiple of the second command line argument.\n"
-          << std::endl;
+          << "ERROR: # of processes must be a multiple of"
+          << " the second command line argument.\n" << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   MPIV mpiv(numprocs, myid, multiple);
-  // Create new groups and communicators for each energy window.
-  mpiv.create_local_communicator();
-  // Get the local id (in the local communicators).
-  mpiv.set_local_id();
+  if (mpiv.num_windows()>1) {
+    // Create new groups and communicators for each window.
+    mpiv.create_local_communicator();
+    // Get the local id (in the local communicators).
+    mpiv.set_local_id();
+  }
   // Model dependent variables.
   int dim = 2;
   int length = 4;
   lattice::graph lat = lattice::graph::simple(dim, length);
   double condition_value = std::pow(2.0, (double)lat.num_sites());
+  int sweeps = lat.num_sites();
   FerroIsing model(lat);
   // Original Wang-Landau parameters.
   int check_flatness_every = 500;
@@ -98,21 +90,20 @@ int main(int argc, char *argv[]) {
   double overlap = atof(argv[1]);
   int swap_every = atoi(argv[3]);
   int swap_count_down = swap_every;
-  int exchange_pattern = 1; // 0 or 1.
+  int exchange_pattern = 0; // 0 or 1.
   int partner;
-  double energy_width = (model.max_value()-model.min_value())/
-      (1.0 + ((double)(mpiv.numprocs()/mpiv.multiple()) - 1.0)*(1.0-overlap));
-  double energy_min_window = model.min_value()+
-      (mpiv.myid()/mpiv.multiple())*(1.0-overlap)*energy_width;
-  double energy_max_window = energy_min_window+energy_width;
+  double width = (model.max_value()-model.min_value()) /
+      (1 + (mpiv.num_windows()-1)*(1-overlap));
+  double energy_min_window = model.min_value() +
+      (mpiv.myid()/mpiv.multiple())*(1-overlap)*width;
+  double energy_max_window = energy_min_window+width;
   int imin = model.get_index(energy_min_window, "ceil");
   int imax = model.get_index(energy_max_window);
   if (mpiv.myid() >= mpiv.numprocs()-mpiv.multiple()) {
     imax = model.num_values()-1;
   }
   int isew =
-      model.get_index(energy_min_window+energy_width*(1-overlap), "ceil");
-  isew -= imin;
+      model.get_index(energy_min_window+width*(1-overlap), "ceil") - imin;
   // For statistics.
   int try_right = 0;
   int try_left = 0;
@@ -135,7 +126,7 @@ int main(int argc, char *argv[]) {
   // Main Wang-Landau routine.
   while (lnf_slowest > lnfmin) {
     for (int i=0; i<check_flatness_every; ++i) {
-      for (int j=0; j<lat.num_sites(); ++j) {
+      for (int j=0; j<sweeps; ++j) {
         energy_tmp = model.Propose(random);
         if ((energy_tmp >= energy_min_window) &&
             (energy_tmp <= ceil(energy_max_window)) &&
@@ -150,9 +141,11 @@ int main(int argc, char *argv[]) {
       } // End 1 sweep.
       --swap_count_down;
       // Start RE.
-      if (swap_count_down==0) {
+      if ((mpiv.num_windows()>1) && (swap_count_down==0)) {
         swap_count_down = swap_every;
-        exchange_pattern ^= 1;
+        if (mpiv.num_windows()>2) {
+          exchange_pattern ^= 1;
+        }
         mpiv.set_comm_id(exchange_pattern);
         // Get exchange partner.
         partner = generate_partner(random, exchange_pattern, mpiv);
@@ -168,8 +161,8 @@ int main(int argc, char *argv[]) {
           if (is_exchange_accepted) {
             // Exchange configuration.
             config_buf = model.config();
-            MPI_Sendrecv_replace(&config_buf[0], config_buf.size(),
-                MPI_INT,partner, 1, partner, 1, mpiv.local_comm(mpiv.comm_id()),
+            MPI_Sendrecv_replace(&config_buf[0], config_buf.size(), MPI_INT,
+                partner, 1, partner, 1, mpiv.local_comm(mpiv.comm_id()),
                 &status);
             // Update.
             model.Update(energy_tmp, config_buf);
@@ -178,6 +171,7 @@ int main(int argc, char *argv[]) {
             else ++exchange_left;
           }
         }
+        // Update histograms (independently of whether RE happened or not).
         ln_dos[model.get_index(model.value())] += lnf;
         histogram[model.get_index(model.value())] += 1;
       } // End RE.
@@ -187,16 +181,14 @@ int main(int argc, char *argv[]) {
     if (is_flat) {
       lnf /= 2.0;
       for (int &i : histogram) i = 0;
-      // Merge g(E) estimators from multiple walkers in the same energy window.
+      // Merge g(E) estimators from multiple walkers in the same window.
       merge_ln_dos(&ln_dos, mpiv);
     }
     // Check progress from all other windows.
     MPI_Allreduce(&lnf, &lnf_slowest, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     ////
-    {
-      if (mpiv.myid() == 1) {
-        std::cout << "lnf_slowest : " << lnf_slowest << std::endl;
-      }
+    if (mpiv.myid() == 1) {
+      std::cout << "lnf_slowest : " << lnf_slowest << std::endl;
     }
     ////
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
@@ -210,7 +202,7 @@ int main(int argc, char *argv[]) {
     ofs << "# condition_type: " << "sum" << "\n";
     ofs << "# condition_value: " << condition_value << "\n";
     ofs << "# sewing_point: " << isew << "\n";
-    ofs << "# number_of_windows: " << mpiv.numprocs()/mpiv.multiple() << "\n";
+    ofs << "# number_of_windows: " << mpiv.num_windows() << "\n";
     ofs << "# energy \t # lngE\n";
     for (int i=imin; i<=imax; ++i) {
       ofs << model.values(i) << "\t"
@@ -228,7 +220,7 @@ int generate_partner(irandom::MTRandom &random, int exchange_pattern,
     const MPIV &mpiv) {
   std::vector<int> partner_list(2*mpiv.multiple());
   int partner;
-  // 'head-node' in the energy window determines pairs of flippariners.
+  // 'head-node' in the window determines pairs of flippariners.
   if (mpiv.local_id(exchange_pattern) == 0) {
     int choose_from = mpiv.multiple();
     int select;
@@ -257,7 +249,7 @@ int generate_partner(irandom::MTRandom &random, int exchange_pattern,
 
 bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
     double flatness, const MPIV &mpiv) {
-  // Check flatness of the histogram for all walkers in the energy window.
+  // Check flatness of the histogram for all walkers in the window.
   MPI_Status status;
   bool my_flat = true;
   bool other_flat;
@@ -275,10 +267,9 @@ bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
   }
   average /= num_bins;
   if ((double)min_histo < flatness*average) my_flat = false;
-  // Now talk to all the other walkers in the energy window.
-  // (! this whole thing can be reduced to an MPI_Allreduce once there are separate communicators for energy windows !)
+  // Now talk to all the other walkers in the window.
   if (mpiv.myid()%mpiv.multiple() == 0) {
-    // 'root' in energy window, receive individual flatnesses.
+    // 'root' in window, receive individual flatnesses.
     for (int i=1; i<mpiv.multiple(); ++i) {
       MPI_Recv(&other_flat, 1, MPI_CXX_BOOL, mpiv.myid()+i, 66, MPI_COMM_WORLD,
           &status);
@@ -290,14 +281,15 @@ bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
     }
   } else {
     // Send individual flatness and receive 'merged' flatness.
-    MPI_Send(&my_flat, 1, MPI_CXX_BOOL, mpiv.myid()-(mpiv.myid()%mpiv.multiple()),
-        66, MPI_COMM_WORLD);
+    MPI_Send(&my_flat, 1, MPI_CXX_BOOL,
+        mpiv.myid()-(mpiv.myid()%mpiv.multiple()), 66, MPI_COMM_WORLD);
     MPI_Recv(&other_flat, 1, MPI_CXX_BOOL,
         mpiv.myid()-(mpiv.myid()%mpiv.multiple()), 88, MPI_COMM_WORLD, &status);
     my_flat = other_flat;  // Replace individual flatness by merged.
   }
   return my_flat;
-  // Note: By now, myflat refers to the 'collective' flatness in the energy window, not the flatness of an individual walker.
+  // Note: By now, myflat refers to the 'collective' flatness in the window,
+  //       not the flatness of an individual walker.
 }
 
 
@@ -350,7 +342,7 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
   std::vector<double> &ln_dos(*ln_dos_ptr);
   std::vector<double> ln_dos_buf = ln_dos;
   if (mpiv.myid()%mpiv.multiple() == 0) {
-    // 'root' in energy window, receive individual g(E) and send merged g(E).
+    // 'root' in window, receive individual g(E) and send merged g(E).
     for (int i=1; i<mpiv.multiple(); ++i) {
       MPI_Recv(&ln_dos_buf[0], (int)ln_dos.size(), MPI_DOUBLE, mpiv.myid()+i,
           77, MPI_COMM_WORLD, &status);
