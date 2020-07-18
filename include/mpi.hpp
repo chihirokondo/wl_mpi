@@ -2,6 +2,7 @@
 #define WANGLANDAU_MPI_H_
 
 
+#include <iostream>
 #include <vector>
 
 
@@ -61,7 +62,7 @@ void MPIV::set_local_id() {
     MPI_Comm_rank(local_comm_[comm_id_tmp], &local_id_[0]);
   }
   if (myid_>=multiple_) {
-    if (!((num_windows_mod2_==0)&&(myid_>numprocs_-multiple_))) {
+    if (!((num_windows_mod2_==0)&&(myid_>=numprocs_-multiple_))) {
       comm_id_tmp = 2*((myid_-multiple_)/(2*multiple_)) + 1;
       MPI_Comm_rank(local_comm_[comm_id_tmp], &local_id_[1]);
     }
