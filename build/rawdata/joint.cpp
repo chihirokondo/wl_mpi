@@ -18,7 +18,7 @@ int main() {
     return 1;
   }
   REWLData data(ifs);
-
+  // Routine for joint.
   string filename;
   REWLData data_append;
   for (int i=1; i<data.num_windows(); ++i) {
@@ -38,7 +38,6 @@ int main() {
     // Joint.
     data.Joint(joint_diff, data_append);
   }
-
   // ln_dos to bare dos.
   double min_ln_dos = 0.0;
   for (int i=0; i<data.ln_dos_size(); ++i) {
@@ -62,7 +61,6 @@ int main() {
   for (double &dos_i : dos) {
     dos_i *= data.constraint_condition_value() / sum_dos_before;
   }
-
   // Output.
   ofstream ofs("../final_dos.dat", ios::out);
   ofs << data.info() << "\n";
@@ -73,11 +71,8 @@ int main() {
     ofs << dos[i] << "\n";
   }
   ofs << endl;
-
-  ////
-  cout << "{";
+  cout << "Results:\n" << "{";
   for (const double &x : dos) cout << x << ", ";
   cout << "}" << endl;
-  ////
   return 0;
 }
