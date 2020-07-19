@@ -75,7 +75,7 @@ void MPIV::set_comm_id(int exchange_pattern) {
       !((num_windows_mod2_==1)&&(myid_>=numprocs_-multiple_))) {
     comm_id_ = 2*(myid_/(2*multiple_));
   } else if ((exchange_pattern==1)&&(myid_>=multiple_)&&
-      !((num_windows_mod2_==0)&&(myid_>numprocs_-multiple_))) {
+      !((num_windows_mod2_==0)&&(myid_>=numprocs_-multiple_))) {
     comm_id_ = ((myid_-multiple_)/(2*multiple_))*2 + 1;
   } else {
     comm_id_ = -1;
