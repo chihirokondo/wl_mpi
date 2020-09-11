@@ -10,16 +10,17 @@
 #include "include/mpi.hpp"
 #include "include/lattice/graph.hpp"
 #include "include/ferro_ising.hpp"
+#include "include/histo_env_manager.hpp"
 
 
 int generate_partner(irandom::MTRandom &random, int exchange_pattern,
     const MPIV &mpiv);
-bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
-    double flatness, const MPIV &mpiv);
-bool replica_exchange(int *energy_partner, int partner, int exchange_pattern,
+bool check_histoflat(size_t imin, size_t imax,
+    const std::vector<int> &histogram, double flatness, const MPIV &mpiv);
+bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     const std::vector<double> &ln_dos, const FerroIsing &model,
-    const MPIV &mpiv, irandom::MTRandom &random, double energy_min_window,
-    double energy_max_window);
+    const HistoEnvManager &histo_env_manager, const MPIV &mpiv,
+    irandom::MTRandom &random, double minval_window, double maxval_window);
 void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
 
 
@@ -58,7 +59,7 @@ int main(int argc, char *argv[]) {
   catch (int err_status) {
     if (myid == 0) {
       std::cerr
-          << "ERROR: # of processes must be a multiple of"
+          << "ERROR: Number of processes must be a multiple of"
           << " the second command line argument.\n" << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -77,67 +78,91 @@ int main(int argc, char *argv[]) {
   double condition_value = std::pow(2.0, (double)lat.num_sites());
   int sweeps = lat.num_sites();
   FerroIsing model(lat);
+  HistoEnvManager histo_env_manager(model.ene_min(), model.ene_max(),
+    model.num_bins(), true);
   // Original Wang-Landau parameters.
   int check_flatness_every = 500;
   double lnf = 1.0;
   double lnfmin = 1e-8;
   double flatness = 0.95;
-  std::vector<double> ln_dos(model.num_values(), 0.0);
-  std::vector<int> histogram(model.num_values(), 0);
+  std::vector<double> ln_dos(histo_env_manager.num_bins(), 0.0);
+  std::vector<int> histogram(histo_env_manager.num_bins(), 0);
   // Replica exchange Wang-Landau (REWL) parameters.
-  bool is_exchange_accepted;
+  bool exchange_accepted;
   double lnf_slowest = lnf;
   double overlap = atof(argv[1]);
   int swap_every = atoi(argv[3]);
   int swap_count_down = swap_every;
   int exchange_pattern = 0; // 0 or 1.
   int partner;
-  double width = (model.max_value()-model.min_value()) /
+  // Settings for the windows.
+  double width = (histo_env_manager.maxval()-histo_env_manager.minval()) /
       (1 + (mpiv.num_windows()-1)*(1-overlap));
-  double energy_min_window = model.min_value() +
+  double minval_window = histo_env_manager.minval() +
       (mpiv.myid()/mpiv.multiple())*(1-overlap)*width;
-  double energy_max_window = energy_min_window+width;
-  int imin = model.get_index(energy_min_window, "ceil");
-  int imax = model.get_index(energy_max_window);
-  if (mpiv.myid() >= mpiv.numprocs()-mpiv.multiple()) {
-    imax = model.num_values()-1;
+  double maxval_window = minval_window+width;
+  size_t imin = histo_env_manager.GetIndex(minval_window);
+  size_t imax = histo_env_manager.GetIndex(maxval_window);
+  minval_window = histo_env_manager.GetVal(imin, "min");
+  maxval_window = histo_env_manager.GetVal(imax, "max");
+  if (mpiv.myid() < mpiv.multiple()) {
+    imin = 0;
+    minval_window = histo_env_manager.minval();
   }
-  int isew =
-      model.get_index(energy_min_window+width*(1-overlap), "ceil") - imin;
+  if (mpiv.myid() >= mpiv.numprocs()-mpiv.multiple()) {
+    imax = histo_env_manager.num_bins()-1;
+    maxval_window = histo_env_manager.maxval();
+  }
+  int width_index = imax-imin;
+  int width_index_min;
+  MPI_Allreduce(&width_index, &width_index_min, 1, MPI_INT, MPI_MIN,
+      MPI_COMM_WORLD);
+  try {
+    if (width_index_min < 1) throw 0;
+  }
+  catch (int err_status) {
+    if (mpiv.myid() == 0) {
+      std::cerr
+          << "ERROR: Too many number of the windows or"
+          << " too few number of the bins were provided.\n" << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+  size_t isew = histo_env_manager.GetIndex(minval_window+width*(1-overlap)) -
+      imin;
   // For statistics.
   int try_right = 0;
   int try_left = 0;
   int exchange_right = 0;
   int exchange_left = 0;
   // Other variables.
-  int energy_tmp;
+  double val_tmp;
   std::vector<int> config_buf;
   bool is_flat;
   irandom::MTRandom random(atoi(argv[4])+mpiv.myid());
-  // Initiate configuration.
-  while ((model.value() <
-      (energy_min_window + (energy_max_window-energy_min_window)/3)) ||
-      (model.value() >
-      (energy_min_window + 2*(energy_max_window-energy_min_window)/3))) {
-    energy_tmp = model.Propose(random);
+  // Initialize the configuration.
+  while ((model.GetVal() < (minval_window + (maxval_window-minval_window)/3)) ||
+      (model.GetVal() > (minval_window + 2*(maxval_window-minval_window)/3))) {
+    ////
+    val_tmp = model.Propose(random);
     model.Update();
+    ////
   }
   MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   // Main Wang-Landau routine.
   while (lnf_slowest > lnfmin) {
     for (int i=0; i<check_flatness_every; ++i) {
       for (int j=0; j<sweeps; ++j) {
-        energy_tmp = model.Propose(random);
-        if ((energy_tmp >= energy_min_window) &&
-            (energy_tmp <= ceil(energy_max_window)) &&
+        val_tmp = model.Propose(random);
+        if ((val_tmp >= minval_window) && (val_tmp <= maxval_window) &&
             (std::log(random.Random()) <
-            ln_dos[model.get_index(model.value())] -
-            ln_dos[model.get_index(energy_tmp)])) {
+            ln_dos[histo_env_manager.GetIndex(model.GetVal())] -
+            ln_dos[histo_env_manager.GetIndex(val_tmp)])) {
           // Accept.
           model.Update();
         }
-        ln_dos[model.get_index(model.value())] += lnf;
-        histogram[model.get_index(model.value())] += 1;
+        ln_dos[histo_env_manager.GetIndex(model.GetVal())] += lnf;
+        histogram[histo_env_manager.GetIndex(model.GetVal())] += 1;
       } // End 1 sweep.
       --swap_count_down;
       // Start RE.
@@ -155,25 +180,21 @@ int main(int argc, char *argv[]) {
           if (partner > mpiv.local_id(exchange_pattern)) ++try_right;
           else ++try_left;
           // Replica exchange.
-          is_exchange_accepted = replica_exchange(&energy_tmp, partner,
-              exchange_pattern, ln_dos, model, mpiv, random, energy_min_window,
-              energy_max_window);
-          if (is_exchange_accepted) {
+          exchange_accepted = replica_exchange(&val_tmp, partner,
+              exchange_pattern, ln_dos, model, histo_env_manager, mpiv, random,
+              minval_window, maxval_window);
+          if (exchange_accepted) {
             // Exchange configuration.
-            config_buf = model.config();
-            MPI_Sendrecv_replace(&config_buf[0], config_buf.size(), MPI_INT,
-                partner, 1, partner, 1, mpiv.local_comm(mpiv.comm_id()),
-                &status);
-            // Update.
-            model.Update(energy_tmp, config_buf);
+            model.ExchangeConfig(partner, mpiv.local_comm(mpiv.comm_id()),
+                val_tmp);
             // Statistics.
             if (partner>mpiv.local_id(exchange_pattern)) ++exchange_right;
             else ++exchange_left;
           }
         }
         // Update histograms (independently of whether RE happened or not).
-        ln_dos[model.get_index(model.value())] += lnf;
-        histogram[model.get_index(model.value())] += 1;
+        ln_dos[histo_env_manager.GetIndex(model.GetVal())] += lnf;
+        histogram[histo_env_manager.GetIndex(model.GetVal())] += 1;
       } // End RE.
     }
     // Check flatness.
@@ -203,9 +224,9 @@ int main(int argc, char *argv[]) {
     ofs << "# condition_value: " << condition_value << "\n";
     ofs << "# sewing_point: " << isew << "\n";
     ofs << "# number_of_windows: " << mpiv.num_windows() << "\n";
-    ofs << "# energy \t # lngE\n";
-    for (int i=imin; i<=imax; ++i) {
-      ofs << model.values(i) << "\t"
+    ofs << "# value \t # lngV\n";
+    for (size_t i=imin; i<=imax; ++i) {
+      ofs << histo_env_manager.GetVal(i, "mid") << "\t"
           << std::scientific << std::setprecision(15) << ln_dos[i] << "\n";
     }
     ofs << std::endl;
@@ -226,7 +247,6 @@ int generate_partner(irandom::MTRandom &random, int exchange_pattern,
     int select;
     std::vector<int> lib_re(mpiv.multiple());
     for (int i=0; i<mpiv.multiple(); ++i) lib_re[i] = mpiv.multiple()+i;
-
     for (int i=0; i<mpiv.multiple(); ++i) {
       select = random.Randrange(choose_from);
       partner_list[i] = lib_re[select];
@@ -247,8 +267,8 @@ int generate_partner(irandom::MTRandom &random, int exchange_pattern,
 }
 
 
-bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
-    double flatness, const MPIV &mpiv) {
+bool check_histoflat(size_t imin, size_t imax,
+    const std::vector<int> &histogram, double flatness, const MPIV &mpiv) {
   // Check flatness of the histogram for all walkers in the window.
   MPI_Status status;
   bool my_flat = true;
@@ -256,7 +276,7 @@ bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
   int num_bins = 0;
   int min_histo = histogram[imin];
   double average = 0.0;
-  for (int i=imin; i<=imax; ++i) {
+  for (size_t i=imin; i<=imax; ++i) {
     if (histogram[i] != 0) {
       ++num_bins;
       average += (double)histogram[i];
@@ -293,23 +313,22 @@ bool check_histoflat(int imin, int imax, const std::vector<int> &histogram,
 }
 
 
-bool replica_exchange(int *energy_partner ,int partner, int exchange_pattern,
+bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     const std::vector<double> &ln_dos, const FerroIsing &model,
-    const MPIV &mpiv, irandom::MTRandom &random, double energy_min_window,
-    double energy_max_window) {
+    const HistoEnvManager &histo_env_manager, const MPIV &mpiv,
+    irandom::MTRandom &random, double minval_window, double maxval_window) {
   MPI_Status status;
   double my_frac, other_frac;
-  bool is_exchange_accepted;
-  // Get the energy from my exchange partner.
-  *energy_partner = model.value();
-  MPI_Sendrecv_replace(energy_partner, 1, MPI_INT, partner, 1, partner, 1,
+  bool exchange_accepted;
+  // Get the "value" from my exchange partner.
+  *val_partner = model.GetVal();
+  MPI_Sendrecv_replace(val_partner, 1, MPI_DOUBLE, partner, 1, partner, 1,
       mpiv.local_comm(mpiv.comm_id()), &status);
-  if ((*energy_partner>energy_max_window) ||
-      (*energy_partner<energy_min_window)) {
+  if ((*val_partner<minval_window) || (maxval_window<*val_partner)) {
     my_frac = -1.0;
   } else {
-    my_frac = std::exp(ln_dos[model.get_index(*energy_partner)] -
-        ln_dos[model.get_index(model.value())]);
+    my_frac = std::exp(ln_dos[histo_env_manager.GetIndex(*val_partner)] -
+        ln_dos[histo_env_manager.GetIndex(model.GetVal())]);
   }
   if (mpiv.local_id(exchange_pattern)<mpiv.multiple()) {
     // Receiver calculate combined exchange probability.
@@ -320,20 +339,20 @@ bool replica_exchange(int *energy_partner ,int partner, int exchange_pattern,
     if ((my_frac>0.0)&&(other_frac>0.0)&&
         (random.Random()<my_frac*other_frac)) {
       // Exchange accepted.
-      is_exchange_accepted = true;
+      exchange_accepted = true;
     } else {
-      is_exchange_accepted = false;
+      exchange_accepted = false;
     }
-    MPI_Send(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
+    MPI_Send(&exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
         mpiv.local_comm(mpiv.comm_id()));
   } else {
     // Send my part of exchange probability and await decision.
     MPI_Send(&my_frac, 1, MPI_DOUBLE, partner, 2,
         mpiv.local_comm(mpiv.comm_id()));
-    MPI_Recv(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
+    MPI_Recv(&exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
         mpiv.local_comm(mpiv.comm_id()), &status);
   } // Now all process know whether the replica exchange will be executed.
-  return is_exchange_accepted;
+  return exchange_accepted;
 }
 
 

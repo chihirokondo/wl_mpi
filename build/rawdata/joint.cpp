@@ -59,7 +59,7 @@ int main() {
   }
   // Normalization.
   for (double &dos_i : dos) {
-    dos_i *= data.constraint_condition_value() / sum_dos_before;
+    dos_i *= data.constraint_condition_GetVal() / sum_dos_before;
   }
   // Output.
   ofstream ofs("../final_dos.dat", ios::out);

@@ -2,6 +2,7 @@
 #define WANGLANDAU_MPI_H_
 
 
+#include <mpi.h>
 #include <iostream>
 #include <vector>
 

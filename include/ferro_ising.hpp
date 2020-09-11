@@ -2,25 +2,17 @@
 #define WANGLANDAU_FERRO_ISING_H_
 
 
+#include <mpi.h>
 #include <iostream>
 #include <string>
 #include "lattice/graph.hpp"
-#include "random"
+#include "random.hpp"
 
 
 class FerroIsing {
  public:
   FerroIsing(lattice::graph lat);
-  int get_index(double ene, std::string mode="floor") const {
-    if (mode == "floor") {
-      return (int)(ene+lat_.num_bonds())/4;
-    } else if (mode=="ceil") {
-      return (int)ceil((ene+lat_.num_bonds())/4);
-    } else {
-      return -1;
-    }
-  }
-  int Propose(irandom::MTRandom &random) {
+  double Propose(irandom::MTRandom &random) {
     energy_proposed_ = energy_;
     site_ = random.Randrange(lat_.num_sites());
     for (int i=0; i<lat_.num_neighbors(site_); ++i) {
@@ -33,32 +25,38 @@ class FerroIsing {
     energy_ = energy_proposed_;
     spin_config_[site_] -= 2*spin_config_[site_];
   }
-  void Update(int energy_new, std::vector<int> spin_config_new) {
-    energy_ = energy_new;
-    spin_config_ = spin_config_new;
-  }
+  void ExchangeConfig(int partner, MPI_Comm local_comm, double energy_new);
   // Gettor.
-  int values(int index) const {return energies_[index];}
-  size_t num_values() const {return energies_.size();}
-  int min_value() const {return energies_.front();}
-  int max_value() const {return energies_.back();}
-  std::vector<int> config() const {return spin_config_;}
-  int value() const {return energy_;}
+  double GetVal() const {return energy_;}
+  size_t num_bins() const {return num_bins_;}
+  double ene_min() const {return ene_min_;}
+  double ene_max() const {return ene_max_;}
  private:
   const lattice::graph lat_;
-  int energy_proposed_, site_, energy_;
-  std::vector<int> energies_;
+  int site_;
+  size_t num_bins_;
+  double ene_min_, ene_max_, energy_proposed_, energy_;
   std::vector<int> spin_config_;
 };
 
 
 FerroIsing::FerroIsing(lattice::graph lat) : lat_(lat) {
+  ene_min_ = -2*(double)lat_.num_sites();
+  ene_max_ = -ene_min_;
+  num_bins_ = lat_.num_sites()+1;
   spin_config_.resize(lat_.num_sites(), 1);
   spin_config_.shrink_to_fit();
-  energy_ = -2*lat_.num_sites();
-  for (int i=0; i<=lat_.num_sites(); ++i) {
-    energies_.push_back(energy_+4*i);
-  }
+  energy_ = ene_min_;
+}
+
+
+void FerroIsing::ExchangeConfig(int partner, MPI_Comm local_comm,
+    double energy_new) {
+  MPI_Status status;
+  MPI_Sendrecv_replace(&spin_config_[0], spin_config_.size(), MPI_INT,
+      partner, 1, partner, 1, local_comm, &status);
+  energy_ = energy_new;
+  // now editing...
 }
 
 

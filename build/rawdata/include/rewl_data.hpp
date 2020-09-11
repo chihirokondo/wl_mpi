@@ -18,7 +18,7 @@ class REWLData {
   int diff_sew() {return diff_sew_;}
   int num_windows() {return num_windows_;}
   string info() {return info_;}
-  double constraint_condition_value() {return constraint_condition_value_;}
+  double constraint_condition_GetVal() {return constraint_condition_value_;}
   double ln_dos(int index) {return ln_dos_[index];}
   size_t ln_dos_size() {return ln_dos_.size();}
   double ln_dos_diff(int index) {return ln_dos_diff_[index];}
