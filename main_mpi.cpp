@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
   std::vector<double> ln_dos(histo_env_manager.num_bins(), 0.0);
   std::vector<int> histogram(histo_env_manager.num_bins(), 0);
   // Replica exchange Wang-Landau (REWL) parameters.
-  bool exchange_accepted;
+  bool is_exchange_accepted;
   double lnf_slowest = lnf;
   double overlap = atof(argv[1]);
   int swap_every = atoi(argv[3]);
@@ -141,12 +141,14 @@ int main(int argc, char *argv[]) {
   bool is_flat;
   irandom::MTRandom random(atoi(argv[4])+mpiv.myid());
   // Initialize the configuration.
-  while ((model.GetVal() < (minval_window + (maxval_window-minval_window)/3)) ||
-      (model.GetVal() > (minval_window + 2*(maxval_window-minval_window)/3))) {
-    ////
+  while ((val_tmp < minval_window) || (maxval_window < val_tmp)) {
     val_tmp = model.Propose(random);
-    model.Update();
-    ////
+    if (std::log(random.Random()) <
+        ln_dos[histo_env_manager.GetIndex(model.GetVal())] -
+        ln_dos[histo_env_manager.GetIndex(val_tmp)]) {
+      model.Update();
+    }
+    ln_dos[histo_env_manager.GetIndex(model.GetVal())] += lnf;
   }
   MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   // Main Wang-Landau routine.
@@ -154,7 +156,7 @@ int main(int argc, char *argv[]) {
     for (int i=0; i<check_flatness_every; ++i) {
       for (int j=0; j<sweeps; ++j) {
         val_tmp = model.Propose(random);
-        if ((val_tmp >= minval_window) && (val_tmp <= maxval_window) &&
+        if ((minval_window <= val_tmp) && (val_tmp <= maxval_window) &&
             (std::log(random.Random()) <
             ln_dos[histo_env_manager.GetIndex(model.GetVal())] -
             ln_dos[histo_env_manager.GetIndex(val_tmp)])) {
@@ -180,10 +182,10 @@ int main(int argc, char *argv[]) {
           if (partner > mpiv.local_id(exchange_pattern)) ++try_right;
           else ++try_left;
           // Replica exchange.
-          exchange_accepted = replica_exchange(&val_tmp, partner,
+          is_exchange_accepted = replica_exchange(&val_tmp, partner,
               exchange_pattern, ln_dos, model, histo_env_manager, mpiv, random,
               minval_window, maxval_window);
-          if (exchange_accepted) {
+          if (is_exchange_accepted) {
             // Exchange configuration.
             model.ExchangeConfig(partner, mpiv.local_comm(mpiv.comm_id()),
                 val_tmp);
@@ -319,7 +321,7 @@ bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     irandom::MTRandom &random, double minval_window, double maxval_window) {
   MPI_Status status;
   double my_frac, other_frac;
-  bool exchange_accepted;
+  bool is_exchange_accepted;
   // Get the "value" from my exchange partner.
   *val_partner = model.GetVal();
   MPI_Sendrecv_replace(val_partner, 1, MPI_DOUBLE, partner, 1, partner, 1,
@@ -339,20 +341,20 @@ bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     if ((my_frac>0.0)&&(other_frac>0.0)&&
         (random.Random()<my_frac*other_frac)) {
       // Exchange accepted.
-      exchange_accepted = true;
+      is_exchange_accepted = true;
     } else {
-      exchange_accepted = false;
+      is_exchange_accepted = false;
     }
-    MPI_Send(&exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
+    MPI_Send(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
         mpiv.local_comm(mpiv.comm_id()));
   } else {
     // Send my part of exchange probability and await decision.
     MPI_Send(&my_frac, 1, MPI_DOUBLE, partner, 2,
         mpiv.local_comm(mpiv.comm_id()));
-    MPI_Recv(&exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
+    MPI_Recv(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
         mpiv.local_comm(mpiv.comm_id()), &status);
   } // Now all process know whether the replica exchange will be executed.
-  return exchange_accepted;
+  return is_exchange_accepted;
 }
 
 
