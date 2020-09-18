@@ -56,7 +56,6 @@ void FerroIsing::ExchangeConfig(int partner, MPI_Comm local_comm,
   MPI_Sendrecv_replace(&spin_config_[0], spin_config_.size(), MPI_INT,
       partner, 1, partner, 1, local_comm, &status);
   energy_ = energy_new;
-  // now editing...
 }
 
 

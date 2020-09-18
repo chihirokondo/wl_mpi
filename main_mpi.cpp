@@ -16,9 +16,9 @@
 
 
 template <typename Model>
-void rewl(std::vector<double> *ln_dos_ptr, Model *model,
-    const HistoEnvManager &histo_env, WLParams &wl_params,
-    const WindowManager &window, MPIV &mpiv, irandom::MTRandom &random);
+void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+    const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
+    const WindowManager &window, MPIV *mpiv_ptr, irandom::MTRandom &random);
 int generate_partner(irandom::MTRandom &random, int exchange_pattern,
     const MPIV &mpiv);
 bool check_histoflat(const WindowManager &window,
@@ -117,7 +117,8 @@ int main(int argc, char *argv[]) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   // REWL.
-  rewl<FerroIsing>(&ln_dos, &model, histo_env, wl_params, window, mpiv, random);
+  rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params, window, &mpiv,
+      random);
   // Output.
   merge_ln_dos(&ln_dos, mpiv);
   if (mpiv.myid()%mpiv.multiple() == 0) {
@@ -143,9 +144,12 @@ int main(int argc, char *argv[]) {
 
 
 template <typename Model>
-void rewl(std::vector<double> *ln_dos_ptr, Model *model,
-    const HistoEnvManager &histo_env, WLParams &wl_params,
-    const WindowManager &window, MPIV &mpiv, irandom::MTRandom &random) {
+void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+    const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
+    const WindowManager &window, MPIV *mpiv_ptr, irandom::MTRandom &random) {
+  Model &model(*model_ptr);
+  WLParams &wl_params(*wl_params_ptr);
+  MPIV &mpiv(*mpiv_ptr);
   MPI_Status status;
   bool is_flat, is_exchange_accepted;
   double lnf_slowest = wl_params.lnf();
@@ -157,29 +161,29 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model,
   std::vector<int> histogram(histo_env.num_bins(), 0);
   // Initialize the configuration.
   while ((val_tmp < window.valmin()) || (window.valmax() < val_tmp)) {
-    val_tmp = model->Propose(random);
+    val_tmp = model.Propose(random);
     if (std::log(random.Random()) <
-        ln_dos[histo_env.GetIndex(model->GetVal())] -
+        ln_dos[histo_env.GetIndex(model.GetVal())] -
         ln_dos[histo_env.GetIndex(val_tmp)]) {
-      model->Update();
+      model.Update();
     }
-    ln_dos[histo_env.GetIndex(model->GetVal())] += wl_params.lnf();
+    ln_dos[histo_env.GetIndex(model.GetVal())] += wl_params.lnf();
   }
   MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   // Main Wang-Landau routine.
   while (lnf_slowest > wl_params.lnfmin()) {
     for (int i=0; i<wl_params.check_flatness_every(); ++i) {
       for (int j=0; j<wl_params.sweeps(); ++j) {
-        val_tmp = model->Propose(random);
+        val_tmp = model.Propose(random);
         if ((window.valmin() <= val_tmp) && (val_tmp <= window.valmax()) &&
             (std::log(random.Random()) <
-            ln_dos[histo_env.GetIndex(model->GetVal())] -
+            ln_dos[histo_env.GetIndex(model.GetVal())] -
             ln_dos[histo_env.GetIndex(val_tmp)])) {
           // Accept.
-          model->Update();
+          model.Update();
         }
-        ln_dos[histo_env.GetIndex(model->GetVal())] += wl_params.lnf();
-        histogram[histo_env.GetIndex(model->GetVal())] += 1;
+        ln_dos[histo_env.GetIndex(model.GetVal())] += wl_params.lnf();
+        histogram[histo_env.GetIndex(model.GetVal())] += 1;
       } // End 1 sweep.
       --swap_count_down;
       // Start RE.
@@ -195,17 +199,17 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model,
         if (partner != -1) {
           // Replica exchange.
           is_exchange_accepted = replica_exchange<Model>(&val_tmp, partner,
-              exchange_pattern, ln_dos, *model, histo_env, window, mpiv,
+              exchange_pattern, ln_dos, model, histo_env, window, mpiv,
               random);
           if (is_exchange_accepted) {
             // Exchange configuration.
-            model->ExchangeConfig(partner, mpiv.local_comm(mpiv.comm_id()),
+            model.ExchangeConfig(partner, mpiv.local_comm(mpiv.comm_id()),
                 val_tmp);
           }
         }
         // Update histograms (independently of whether RE happened or not).
-        ln_dos[histo_env.GetIndex(model->GetVal())] += wl_params.lnf();
-        histogram[histo_env.GetIndex(model->GetVal())] += 1;
+        ln_dos[histo_env.GetIndex(model.GetVal())] += wl_params.lnf();
+        histogram[histo_env.GetIndex(model.GetVal())] += 1;
       } // End RE.
     }
     // Check flatness.

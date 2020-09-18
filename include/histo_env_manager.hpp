@@ -66,6 +66,13 @@ double HistoEnvManager::GetVal(size_t index, std::string loc) const {
     } else {
       return min_ + (index+1)*width_;
     }
+  } else {
+    // Same as the case of "mid".
+    if (centering_) {
+      return min_ + index*width_;
+    } else {
+      return min_ + (index+0.5)*width_;
+    }
   }
 }
 
