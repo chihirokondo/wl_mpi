@@ -2,19 +2,19 @@
 #define WANGLANDAU_FERRO_ISING_H_
 
 
+#include <random>
 #include <mpi.h>
 #include <iostream>
 #include <string>
 #include "lattice/graph.hpp"
-#include "random.hpp"
 
 
 class FerroIsing {
  public:
   FerroIsing(lattice::graph lat);
-  double Propose(irandom::MTRandom &random) {
+  double Propose(std::mt19937 &engine) {
     energy_proposed_ = energy_;
-    site_ = random.Randrange(lat_.num_sites());
+    site_ = dist_(engine);
     for (int i=0; i<lat_.num_neighbors(site_); ++i) {
       energy_proposed_ +=
           2*spin_config_[site_]*spin_config_[lat_.neighbor(site_, i)];
@@ -37,6 +37,7 @@ class FerroIsing {
   size_t num_bins_;
   double ene_min_, ene_max_, energy_proposed_, energy_;
   std::vector<int> spin_config_;
+  std::uniform_int_distribution<size_t> dist_;
 };
 
 
@@ -47,6 +48,8 @@ FerroIsing::FerroIsing(lattice::graph lat) : lat_(lat) {
   spin_config_.resize(lat_.num_sites(), 1);
   spin_config_.shrink_to_fit();
   energy_ = ene_min_;
+  std::uniform_int_distribution<size_t> dist(0, lat_.num_sites()-1);
+  dist_ = dist;
 }
 
 

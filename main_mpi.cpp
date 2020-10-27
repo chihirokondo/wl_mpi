@@ -1,12 +1,12 @@
 // Ferromagnetic Ising model.
 #include <mpi.h>
 #include <cmath>
+#include <random>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <string>
 #include <vector>
-#include "include/random.hpp"
 #include "include/mpi.hpp"
 #include "include/lattice/graph.hpp"
 #include "include/ferro_ising.hpp"
@@ -18,8 +18,8 @@
 template <typename Model>
 void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, irandom::MTRandom &random);
-int generate_partner(irandom::MTRandom &random, int exchange_pattern,
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine);
+int generate_partner(std::mt19937 &engine, int exchange_pattern,
     const MPIV &mpiv);
 bool check_histoflat(const WindowManager &window,
     const std::vector<int> &histogram, double flatness, const MPIV &mpiv);
@@ -27,7 +27,7 @@ template <typename Model>
 bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     const std::vector<double> &ln_dos, const Model &model,
     const HistoEnvManager &histo_env, const WindowManager &window,
-    const MPIV &mpiv, irandom::MTRandom &random);
+    const MPIV &mpiv, std::mt19937 &engine);
 void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
 
 
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
   double lnfmin = 1e-8;
   double flatness = 0.95;
   std::vector<double> ln_dos(histo_env.num_bins(), 0.0);
-  irandom::MTRandom random(atoi(argv[4])+mpiv.myid());
+  std::mt19937 engine(atoi(argv[4])+mpiv.myid());
   // Replica exchange Wang-Landau (REWL) parameters.
   double overlap = atof(argv[1]);
   int swap_every = atoi(argv[3]);
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
   }
   // REWL.
   rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params, window, &mpiv,
-      random);
+      engine);
   // Output.
   merge_ln_dos(&ln_dos, mpiv);
   if (mpiv.myid()%mpiv.multiple() == 0) {
@@ -146,11 +146,12 @@ int main(int argc, char *argv[]) {
 template <typename Model>
 void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, irandom::MTRandom &random) {
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine) {
   Model &model(*model_ptr);
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
   MPI_Status status;
+  std::uniform_real_distribution<> uniform01_double{0., 1.};
   bool is_flat, is_exchange_accepted;
   double lnf_slowest = wl_params.lnf();
   int exchange_pattern = 0; // 0 or 1.
@@ -161,8 +162,8 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   std::vector<int> histogram(histo_env.num_bins(), 0);
   // Initialize the configuration.
   while ((val_tmp < window.valmin()) || (window.valmax() < val_tmp)) {
-    val_tmp = model.Propose(random);
-    if (std::log(random.Random()) <
+    val_tmp = model.Propose(engine);
+    if (std::log(uniform01_double(engine)) <
         ln_dos[histo_env.GetIndex(model.GetVal())] -
         ln_dos[histo_env.GetIndex(val_tmp)]) {
       model.Update();
@@ -174,9 +175,9 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   while (lnf_slowest > wl_params.lnfmin()) {
     for (int i=0; i<wl_params.check_flatness_every(); ++i) {
       for (int j=0; j<wl_params.sweeps(); ++j) {
-        val_tmp = model.Propose(random);
+        val_tmp = model.Propose(engine);
         if ((window.valmin() <= val_tmp) && (val_tmp <= window.valmax()) &&
-            (std::log(random.Random()) <
+            (std::log(uniform01_double(engine)) <
             ln_dos[histo_env.GetIndex(model.GetVal())] -
             ln_dos[histo_env.GetIndex(val_tmp)])) {
           // Accept.
@@ -194,13 +195,13 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
         }
         mpiv.set_comm_id(exchange_pattern);
         // Get exchange partner.
-        partner = generate_partner(random, exchange_pattern, mpiv);
+        partner = generate_partner(engine, exchange_pattern, mpiv);
         MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
         if (partner != -1) {
           // Replica exchange.
           is_exchange_accepted = replica_exchange<Model>(&val_tmp, partner,
               exchange_pattern, ln_dos, model, histo_env, window, mpiv,
-              random);
+              engine);
           if (is_exchange_accepted) {
             // Exchange configuration.
             model.ExchangeConfig(partner, mpiv.local_comm(mpiv.comm_id()),
@@ -233,18 +234,19 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
 }
 
 
-int generate_partner(irandom::MTRandom &random, int exchange_pattern,
+int generate_partner(std::mt19937 &engine, int exchange_pattern,
     const MPIV &mpiv) {
   std::vector<size_t> partner_list(2*mpiv.multiple());
   int partner;
-  // 'head-node' in the window determines pairs of flippariners.
+  // 'head-node' in the window determines pairs of flippartners.
   if (mpiv.local_id(exchange_pattern) == 0) {
     int choose_from = mpiv.multiple();
     int select;
     std::vector<size_t> lib_re(mpiv.multiple());
     for (size_t i=0; i<mpiv.multiple(); ++i) lib_re[i] = mpiv.multiple()+i;
     for (size_t i=0; i<mpiv.multiple(); ++i) {
-      select = random.Randrange(choose_from);
+      std::uniform_int_distribution<> dist(0, choose_from-1);
+      select = dist(engine);
       partner_list[i] = lib_re[select];
       partner_list[lib_re[select]] = i;
       --choose_from;
@@ -313,8 +315,9 @@ template <typename Model>
 bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     const std::vector<double> &ln_dos, const Model &model,
     const HistoEnvManager &histo_env, const WindowManager &window,
-    const MPIV &mpiv, irandom::MTRandom &random) {
+    const MPIV &mpiv, std::mt19937 &engine) {
   MPI_Status status;
+  std::uniform_real_distribution<> uniform01_double{0., 1.};
   double my_frac, other_frac;
   bool is_exchange_accepted;
   // Get the "value" from my exchange partner.
@@ -334,7 +337,7 @@ bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
         mpiv.local_comm(mpiv.comm_id()), &status);
     // Calculate combined exchange probability and do exchange trial.
     if ((my_frac>0.0)&&(other_frac>0.0)&&
-        (random.Random()<my_frac*other_frac)) {
+        (uniform01_double(engine)<my_frac*other_frac)) {
       // Exchange accepted.
       is_exchange_accepted = true;
     } else {
