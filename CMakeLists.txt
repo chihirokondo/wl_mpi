@@ -14,7 +14,5 @@ endif(MPI_FOUND)
 find_package(Eigen3 REQUIRED)
 include(${EIGEN3_USE_FILE})
 
-add_subdirectory(src)
-
 add_executable(main_mpi.app main_mpi.cpp)
-target_link_libraries(main_mpi.app ${MPI_CXX_LIBRARIES} rewl_lib)
+target_link_libraries(main_mpi.app ${MPI_CXX_LIBRARIES})
