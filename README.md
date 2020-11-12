@@ -9,4 +9,4 @@ $ make
 
 ## Thanks
 
-- [JSON for Modern C++](https://github.com/nlohmann/json#thanks)
+- [JSON for Modern C++](https://github.com/nlohmann/json#)
