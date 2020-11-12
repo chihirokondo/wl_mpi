@@ -5,3 +5,8 @@ $ cd build
 $ cmake ..
 $ make
 ~~~
+## License
+
+## Thanks
+
+- [JSON for Modern C++](https://github.com/nlohmann/json#thanks)

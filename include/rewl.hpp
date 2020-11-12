@@ -1,14 +1,19 @@
 #ifndef WANGLANDAU_REWL_H_
 #define WANGLANDAU_REWL_H_
 
+
+#include <fstream>
 #include <random>
+#include <string>
 #include "mpi_setting.hpp"
+#include "stop_callback.hpp"
 
 
 template <typename Model>
 void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine);
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
+    StopCallback stop_callback);
 int generate_partner(std::mt19937 &engine, int exchange_pattern,
     const MPIV &mpiv);
 bool check_histoflat(const WindowManager &window,
@@ -69,7 +74,8 @@ bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
 template <typename Model>
 void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine) {
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
+    StopCallback stop_callback) {
   Model &model(*model_ptr);
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
@@ -94,7 +100,6 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     }
     ln_dos[histo_env.GetIndex(model.GetVal())] += wl_params.lnf();
   }
-  MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   // Main Wang-Landau routine.
   while (LNF_SLOWEST > wl_params.lnfmin()) {
     for (int i=0; i<wl_params.check_flatness_every(); ++i) {
@@ -154,8 +159,14 @@ void rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       std::cout << "LNF_SLOWEST : " << LNF_SLOWEST << std::endl;
     }
     ////
-    //// insert stop_callback.
+    // Time check.
+    if (stop_callback()) {
+      //// Leave log files and stop.
+      std::string filename = "./log/proc" + mpiv.myid() + ".json";
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
   } // End while(LNF_SLOWEST>lnfmin) -> this terminates the simulation.
+  //// leave log files.
 }
 
 

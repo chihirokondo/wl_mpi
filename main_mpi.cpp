@@ -12,6 +12,7 @@
 #include "include/window.hpp"
 #include "include/wl_params.hpp"
 #include "include/rewl.hpp"
+#include "include/stop_callback.hpp"
 
 
 int main(int argc, char *argv[]) {
@@ -99,13 +100,16 @@ int main(int argc, char *argv[]) {
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
+  // Stop callback.
+  double timelimit_secs = 600;
+  StopCallback stop_callback(mpiv, timelimit_secs);
   // REWL.
   rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params, window, &mpiv,
-      engine);
+      engine, stop_callback);
   // Output.
   merge_ln_dos(&ln_dos, mpiv);
   if (mpiv.myid()%mpiv.multiple() == 0) {
-    std::string filename = "./rawdata/lngE_proc" +
+    std::string filename = "./rawdata/ln_val_window" +
         std::to_string(mpiv.myid()/mpiv.multiple()) + ".dat";
     std::ofstream ofs(filename, std::ios::out);
     ofs << "# dim: " << dim << ", length: " << length << "\n";
