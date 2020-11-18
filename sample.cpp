@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
   // Stop callback.
   double timelimit_secs = 600;
   StopCallback stop_callback(mpiv, timelimit_secs);
-  // REWL.
+  // REWL routine.
   rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params, window, &mpiv,
       engine, stop_callback);
   // Output.

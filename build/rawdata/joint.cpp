@@ -9,7 +9,7 @@ using namespace std;
 
 int main() {
   // Read file.
-  ifstream ifs("../lngE_proc0.dat", ios::in);
+  ifstream ifs("../ln_val_window0.dat", ios::in);
   try {
     if (!ifs) throw 0;
   }
@@ -22,7 +22,7 @@ int main() {
   string filename;
   REWLData data_append;
   for (int i=1; i<data.num_windows(); ++i) {
-    filename = "../lngE_proc" + to_string(i) + ".dat";
+    filename = "../ln_val_window" + to_string(i) + ".dat";
     ifstream ifs(filename, ios::in);
     data_append = REWLData::construct_data(ifs);
     // Determine joint point.

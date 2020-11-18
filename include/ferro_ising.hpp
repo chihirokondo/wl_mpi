@@ -5,8 +5,12 @@
 #include <random>
 #include <mpi.h>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
 #include <string>
+#include <nlohmann/json.hpp>
 #include "lattice/graph.hpp"
+using json = nlohmann::json;
 
 
 class FerroIsing {
@@ -26,6 +30,7 @@ class FerroIsing {
     spin_config_[site_] -= 2*spin_config_[site_];
   }
   void ExchangeConfig(int partner, MPI_Comm local_comm, double energy_new);
+  void WriteState(std::ofstream *ofs_ptr);
   // Gettor.
   double GetVal() const {return energy_;}
   size_t num_bins() const {return num_bins_;}
@@ -59,6 +64,21 @@ void FerroIsing::ExchangeConfig(int partner, MPI_Comm local_comm,
   MPI_Sendrecv_replace(&spin_config_[0], spin_config_.size(), MPI_INT,
       partner, 1, partner, 1, local_comm, &status);
   energy_ = energy_new;
+}
+
+
+void FerroIsing::WriteState(std::ofstream *ofs_ptr) {
+  std::ofstream &ofs(*ofs_ptr);
+  json log_json;
+  // Main information.
+  log_json["energy"] = energy_;
+  json json_spin_config(spin_config_);
+  log_json["spin_configuration"] = json_spin_config;
+  // For checking.
+  log_json["energy_min"] = ene_min_;
+  log_json["energy_max"] = ene_max_;
+  // Output with pretty printing.
+  ofs << std::setw(4) << log_json << std::endl;
 }
 
 
