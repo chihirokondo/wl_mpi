@@ -2,6 +2,7 @@
 ## How to build
 ~~~shell-session
 $ cd build
+$ mkdir log
 $ cmake ..
 $ make
 ~~~
