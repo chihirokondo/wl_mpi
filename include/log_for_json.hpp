@@ -17,13 +17,13 @@ using json = nlohmann::json;
 void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos,
     const std::mt19937 &engine, const std::vector<int> &histogram,
-    int swap_count_down, int exchange_pattern);
+    int swap_count_down, int exchange_pattern, double lnf_slowest);
 
 
 void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos,
     const std::mt19937 &engine, const std::vector<int> &histogram,
-    int swap_count_down, int exchange_pattern) {
+    int swap_count_down, int exchange_pattern, double lnf_slowest) {
   std::ofstream &ofs(*ofs_ptr);
   json log_json;
   // Mapping.
@@ -48,6 +48,7 @@ void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
   log_json["histogram"] = json_histo;
   log_json["swap_count_down"] = swap_count_down;
   log_json["exchange_pattern"] = exchange_pattern;
+  log_json["lnf_slowest"] = lnf_slowest;
   // Output with pretty printing.
   ofs << std::setw(4) << log_json << std::endl;
 }

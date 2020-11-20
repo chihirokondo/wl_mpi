@@ -100,29 +100,33 @@ int main(int argc, char *argv[]) {
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  // Stop callback.
+  // Program control.
   double timelimit_secs = 600;
   StopCallback stop_callback(mpiv, timelimit_secs);
+  bool from_the_top = true;
+  int running_state;
   // REWL routine.
-  rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params, window, &mpiv,
-      engine, stop_callback);
-  // Output.
-  merge_ln_dos(&ln_dos, mpiv);
-  if (mpiv.myid()%mpiv.multiple() == 0) {
-    std::string filename = "./rawdata/ln_val_window" +
-        std::to_string(mpiv.myid()/mpiv.multiple()) + ".dat";
-    std::ofstream ofs(filename, std::ios::out);
-    ofs << "# dim: " << dim << ", length: " << length << "\n";
-    ofs << "# condition_type: " << "sum" << "\n";
-    ofs << "# condition_value: " << condition_value << "\n";
-    ofs << "# sewing_point: " << window.isew() << "\n";
-    ofs << "# number_of_windows: " << mpiv.num_windows() << "\n";
-    ofs << "# value \t # lngV\n";
-    for (size_t i=window.imin(); i<=window.imax(); ++i) {
-      ofs << histo_env.GetVal(i, "mid") << "\t"
-          << std::scientific << std::setprecision(15) << ln_dos[i] << "\n";
+  running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
+      window, &mpiv, &engine, stop_callback, from_the_top);
+  if (running_state == 2) {
+    // Output.
+    merge_ln_dos(&ln_dos, mpiv);
+    if (mpiv.myid()%mpiv.multiple() == 0) {
+      std::string filename = "./rawdata/ln_val_window" +
+          std::to_string(mpiv.myid()/mpiv.multiple()) + ".dat";
+      std::ofstream ofs(filename, std::ios::out);
+      ofs << "# dim: " << dim << ", length: " << length << "\n";
+      ofs << "# condition_type: " << "sum" << "\n";
+      ofs << "# condition_value: " << condition_value << "\n";
+      ofs << "# sewing_point: " << window.isew() << "\n";
+      ofs << "# number_of_windows: " << mpiv.num_windows() << "\n";
+      ofs << "# value \t # lngV\n";
+      for (size_t i=window.imin(); i<=window.imax(); ++i) {
+        ofs << histo_env.GetVal(i, "mid") << "\t"
+            << std::scientific << std::setprecision(15) << ln_dos[i] << "\n";
+      }
+      ofs << std::endl;
     }
-    ofs << std::endl;
   }
   MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   MPI_Finalize();
