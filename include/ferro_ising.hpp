@@ -16,8 +16,7 @@ using json = nlohmann::json;
 class FerroIsing {
  public:
   FerroIsing(lattice::graph lat);
-  double Propose(std::mt19937 *engine) {
-    std::mt19937 &engine(*engine);
+  double Propose(std::mt19937 &engine) {
     energy_proposed_ = energy_;
     site_ = dist_(engine);
     for (int i=0; i<lat_.num_neighbors(site_); ++i) {

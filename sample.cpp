@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
   int running_state;
   // REWL routine.
   running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
-      window, &mpiv, &engine, stop_callback, from_the_top);
+      window, &mpiv, engine, stop_callback, from_the_top);
   if (running_state == 2) {
     // Output.
     merge_ln_dos(&ln_dos, mpiv);

@@ -20,15 +20,15 @@
 template <typename Model>
 int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 *engine,
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     StopCallback stop_callback, bool from_the_top);
-int generate_partner(std::mt19937 *engine, int exchange_pattern,
+int generate_partner(std::mt19937 &engine, int exchange_pattern,
     const MPIV &mpiv);
 template <typename Model>
 bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     const std::vector<double> &ln_dos, const Model &model,
     const HistoEnvManager &histo_env, const WindowManager &window,
-    const MPIV &mpiv, std::mt19937 *engine);
+    const MPIV &mpiv, std::mt19937 &engine);
 bool check_histoflat(const WindowManager &window,
     const std::vector<int> &histogram, double flatness, const MPIV &mpiv);
 void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
@@ -37,12 +37,11 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
 template <typename Model>
 int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 *engine,
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     StopCallback stop_callback, bool from_the_top) {
   Model &model(*model_ptr);
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
-  std::mt19937 &engine(*engine);
   MPI_Status status;
   std::string log_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       ".json";
@@ -63,7 +62,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   // Initialize the configuration.
   val_proposed = model.GetVal();
   while ((val_proposed < window.valmin()) || (window.valmax() < val_proposed)) {
-    val_proposed = model.Propose(&engine);
+    val_proposed = model.Propose(engine);
     if (std::log(uniform01_double(engine)) <
         ln_dos[histo_env.GetIndex(model.GetVal())] -
         ln_dos[histo_env.GetIndex(val_proposed)]) {
@@ -84,7 +83,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     }
     for (int i=0; i<wl_params.check_flatness_every(); ++i) {
       for (int j=0; j<wl_params.sweeps(); ++j) {
-        val_proposed = model.Propose(&engine);
+        val_proposed = model.Propose(engine);
         if ((window.valmin() <= val_proposed) &&
             (val_proposed <= window.valmax()) &&
             (std::log(uniform01_double(engine)) <
@@ -105,13 +104,12 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
         }
         mpiv.set_comm_id(exchange_pattern);
         // Get exchange partner.
-        partner = generate_partner(&engine, exchange_pattern, mpiv);
+        partner = generate_partner(engine, exchange_pattern, mpiv);
         MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
         if (partner != -1) {
           // Replica exchange.
           is_exchange_accepted = replica_exchange<Model>(&val_proposed, partner,
-              exchange_pattern, ln_dos, model, histo_env, window, mpiv,
-              &engine);
+              exchange_pattern, ln_dos, model, histo_env, window, mpiv, engine);
           if (is_exchange_accepted) {
             // Exchange configuration.
             model.ExchangeConfig(partner, mpiv.local_comm(mpiv.comm_id()),
@@ -150,9 +148,8 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
 }
 
 
-int generate_partner(std::mt19937 *engine, int exchange_pattern,
+int generate_partner(std::mt19937 &engine, int exchange_pattern,
     const MPIV &mpiv) {
-  std::mt19937 &engine(*engine);
   std::vector<size_t> partner_list(2*mpiv.multiple());
   int partner;
   // 'head-node' in the window determines pairs of flippartners.
@@ -186,8 +183,7 @@ template <typename Model>
 bool replica_exchange(double *val_partner ,int partner, int exchange_pattern,
     const std::vector<double> &ln_dos, const Model &model,
     const HistoEnvManager &histo_env, const WindowManager &window,
-    const MPIV &mpiv, std::mt19937 *engine) {
-  std::mt19937 &engine(*engine);
+    const MPIV &mpiv, std::mt19937 &engine) {
   MPI_Status status;
   std::uniform_real_distribution<> uniform01_double{0., 1.};
   double my_frac, other_frac;
