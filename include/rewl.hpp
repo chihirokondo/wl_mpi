@@ -43,11 +43,12 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
   MPI_Status status;
+  // For log files.
   std::string log_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       ".json";
-  std::ofstream ofs_log(log_file_name, std::ios::out);
   std::string model_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       "_model_state";
+  std::ofstream ofs_log(log_file_name, std::ios::out);
   std::ofstream ofs_model_log(model_file_name, std::ios::out);
   int running_state = 0;
   std::uniform_real_distribution<> uniform01_double{0., 1.};
@@ -59,18 +60,34 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   int swap_count_down = wl_params.swap_every();
   std::vector<double> &ln_dos(*ln_dos_ptr);
   std::vector<int> histogram(histo_env.num_bins(), 0);
-  // Initialize the configuration.
-  val_proposed = model.GetVal();
-  while ((val_proposed < window.valmin()) || (window.valmax() < val_proposed)) {
-    val_proposed = model.Propose(engine);
-    if (std::log(uniform01_double(engine)) <
-        ln_dos[histo_env.GetIndex(model.GetVal())] -
-        ln_dos[histo_env.GetIndex(val_proposed)]) {
-      model.Update();
+  if (from_the_top) {
+    // Initialize the configuration.
+    val_proposed = model.GetVal();
+    while ((val_proposed < window.valmin()) ||
+        (window.valmax() < val_proposed)) {
+      val_proposed = model.Propose(engine);
+      if (std::log(uniform01_double(engine)) <
+          ln_dos[histo_env.GetIndex(model.GetVal())] -
+          ln_dos[histo_env.GetIndex(val_proposed)]) {
+        model.Update();
+      }
+      ln_dos[histo_env.GetIndex(model.GetVal())] += wl_params.lnf();
     }
-    ln_dos[histo_env.GetIndex(model.GetVal())] += wl_params.lnf();
+  } else {
+    //// Read log files and check consistency.
+    std::ifstream ifs_log(log_file_name, std::ios::in);
+    bool is_consistent;
+    if(mpiv.myid() == 0) {
+      is_consistent = check_log_json(&ifs_log, mpiv, wl_params, ln_dos);
+    }
+    MPI_Bcast(&is_consistent, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+    if (!is_consistent) return -1; // Error occured.
+    // Read log for model.
+    set_from_log_json(&ifs_log, &wl_params, &ln_dos, engine, &histogram,
+        &swap_count_down, &exchange_pattern, &lnf_slowest);
+    std::ifstream ifs_model_log(model_file_name, std::ios::in);
+    model.SetFromLog(&ifs_model_log);
   }
-  ++running_state;
   // Main Wang-Landau routine.
   while (lnf_slowest > wl_params.lnfmin()) {
     // Check elapsed time.

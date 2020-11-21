@@ -16,6 +16,7 @@ class WLParams {
     flatness_(flatness),
     swap_every_(swap_every) {}
   void update_lnf() {lnf_ /= 2.0;}
+  void set_lnf(double lnf) {lnf_ = lnf;}
   // Gettor.
   int sweeps() const {return sweeps_;}
   int check_flatness_every() const {return check_flatness_every_;}

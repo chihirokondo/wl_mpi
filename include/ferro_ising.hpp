@@ -31,6 +31,7 @@ class FerroIsing {
   }
   void ExchangeConfig(int partner, MPI_Comm local_comm, double energy_new);
   void WriteState(std::ofstream *ofs_ptr);
+  void SetFromLog(std::ifstream *ifs_ptr);
   // Gettor.
   double GetVal() const {return energy_;}
   size_t num_bins() const {return num_bins_;}
@@ -79,6 +80,15 @@ void FerroIsing::WriteState(std::ofstream *ofs_ptr) {
   log_json["energy_max"] = ene_max_;
   // Output with pretty printing.
   ofs << std::setw(4) << log_json << std::endl;
+}
+
+
+void FerroIsing::SetFromLog(std::ifstream *ifs_ptr) {
+  std::ifstream &ifs(*ifs_ptr);
+  json log_json;
+  ifs >> log_json;
+  energy_ = log_json["energy"];
+  spin_config_ = log_json["spin_configuration"].get<std::vector<int>>();
 }
 
 

@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
   // REWL routine.
   running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
       window, &mpiv, engine, stop_callback, from_the_top);
-  if (running_state == 2) {
+  if (running_state == 1) {
     // Output.
     merge_ln_dos(&ln_dos, mpiv);
     if (mpiv.myid()%mpiv.multiple() == 0) {
@@ -127,6 +127,14 @@ int main(int argc, char *argv[]) {
       }
       ofs << std::endl;
     }
+  } else if (running_state == -1) {
+    if (mpiv.myid() == 0) {
+      std::cerr
+          << "ERROR: Cannot restart the experiment.\n"
+          << "       Last-time job was completely finished or "
+          << "some conditions have been changed." << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
   MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   MPI_Finalize();
