@@ -92,6 +92,9 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   while (lnf_slowest > wl_params.lnfmin()) {
     // Check elapsed time.
     if (stop_callback()) {
+      ////
+      std::cout << "stop" << std::endl;
+      ////
       // Leave log files and stop.
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
           histogram, swap_count_down, exchange_pattern, lnf_slowest);

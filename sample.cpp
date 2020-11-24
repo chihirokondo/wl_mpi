@@ -6,13 +6,13 @@
 #include <string>
 #include <vector>
 #include "include/mpi_setting.hpp"
-#include "include/lattice/graph.hpp"
-#include "include/ferro_ising.hpp"
 #include "include/histo_env_manager.hpp"
 #include "include/window.hpp"
 #include "include/wl_params.hpp"
 #include "include/rewl.hpp"
 #include "include/stop_callback.hpp"
+#include "model_sample/lattice/graph.hpp"
+#include "model_sample/ferro_ising.hpp"
 
 
 int main(int argc, char *argv[]) {
@@ -23,21 +23,24 @@ int main(int argc, char *argv[]) {
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   // Check command line arguments.
   try {
-    if (argc != 5) throw 0;
+    if (argc != 7) throw 0;
   }
   catch (int err_status) {
     if (myid == 0) {
       std::cerr
           << "ERROR: Unexpected number of command line arguments!\n"
-          << "       Expect 4 arguments, " << argc - 1 << " were provided.\n"
-          << "Syntax: ./a.out [arg1] [arg2] [arg3] [arg4] \n\n"
+          << "       Expect 6 arguments, " << argc - 1 << " were provided.\n"
+          << "Syntax: ./a.out [arg1] [arg2] [arg3] [arg4] [arg5] [arg6] \n\n"
           << "Please provide the following command line arguments:\n"
           << "1. Overlap between consecutive windows."
           << " [double, 0 <= overlap <= 1]\n"
           << "2. Number of walkers per window. [integer]\n"
           << "3. Number of Monte Carlo steps between replica exchange."
           << " [integer]\n"
-          << "4. Random number seed. [integer]\n" << std::endl;
+          << "4. Random number seed. [integer]\n"
+          << "5. Time limit (secs). [double]\n"
+          << "6. Should execute from the top. [integer (bool)]\n"
+          << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
@@ -51,7 +54,8 @@ int main(int argc, char *argv[]) {
     if (myid == 0) {
       std::cerr
           << "ERROR: Number of processes must be a multiple of"
-          << " the second command line argument.\n" << std::endl;
+          << " the second command line argument.\n"
+          << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
@@ -96,14 +100,15 @@ int main(int argc, char *argv[]) {
     if (mpiv.myid() == 0) {
       std::cerr
           << "ERROR: Too many number of the windows or"
-          << " too few number of the bins were provided.\n" << std::endl;
+          << " too few number of the bins were provided.\n"
+          << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   // Program control.
-  double timelimit_secs = 600;
+  double timelimit_secs = atof(argv[5]);
   StopCallback stop_callback(mpiv, timelimit_secs);
-  bool from_the_top = true;
+  bool from_the_top = atoi(argv[6]);
   int running_state;
   // REWL routine.
   running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
@@ -132,7 +137,8 @@ int main(int argc, char *argv[]) {
       std::cerr
           << "ERROR: Cannot restart the experiment.\n"
           << "       Last-time job was completely finished or "
-          << "some conditions have been changed." << std::endl;
+          << "some conditions have been changed."
+          << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
