@@ -7,6 +7,8 @@
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <algorithm>
+#include <numeric>
 #include <string>
 #include <vector>
 #include "mpi_setting.hpp"
@@ -160,17 +162,12 @@ int generate_partner(std::mt19937 &engine, int exchange_pattern,
   std::vector<size_t> partner_list(2*mpiv.multiple());
   // 'head-node' in the window determines pairs of flippartners.
   if (mpiv.local_id(exchange_pattern) == 0) {
-    int choose_from = mpiv.multiple();
-    int select;
-    std::vector<size_t> lib_re(mpiv.multiple());
-    for (size_t i=0; i<mpiv.multiple(); ++i) lib_re[i] = mpiv.multiple()+i;
+    std::vector<size_t> pair_2nd_half(mpiv.multiple());
+    std::iota(pair_2nd_half.begin(), pair_2nd_half.end(), mpiv.multiple());
+    std::shuffle(pair_2nd_half.begin(), pair_2nd_half.end(), engine);
     for (size_t i=0; i<mpiv.multiple(); ++i) {
-      std::uniform_int_distribution<> dist(0, choose_from-1);
-      select = dist(engine);
-      partner_list[i] = lib_re[select];
-      partner_list[lib_re[select]] = i;
-      --choose_from;
-      for (size_t j=select; j<choose_from; ++j) lib_re[j] = lib_re[j+1];
+      partner_list[i] = pair_2nd_half[i];
+      partner_list[pair_2nd_half[i]] = i;
     }
   }
   // At this point, every walker has a swap partner assigned,
