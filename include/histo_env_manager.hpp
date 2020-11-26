@@ -39,41 +39,23 @@ HistoEnvManager::HistoEnvManager(double min, double max, size_t num_bins,
 
 
 size_t HistoEnvManager::GetIndex(double val) const {
-  if (centering_) {
-    return (size_t)((val-min_+0.5*width_)/width_);
-  } else {
-    return (size_t)((val-min_)/width_);
-  }
+  if (centering_) return (size_t)((val-min_+0.5*width_)/width_);
+  return (size_t)((val-min_)/width_);
 }
 
 
 double HistoEnvManager::GetVal(size_t index, std::string loc) const {
   if (loc == "min") {
-    if (centering_) {
-      return min_ + (index-0.5)*width_;
-    } else {
-      return min_ + index*width_;
-    }
-  } else if (loc == "mid") {
-    if (centering_) {
-      return min_ + index*width_;
-    } else {
-      return min_ + (index+0.5)*width_;
-    }
-  } else if (loc == "max") {
-    if (centering_) {
-      return min_ + (index+0.5)*width_;
-    } else {
-      return min_ + (index+1)*width_;
-    }
-  } else {
-    // Same as the case of "mid".
-    if (centering_) {
-      return min_ + index*width_;
-    } else {
-      return min_ + (index+0.5)*width_;
-    }
+    if (centering_) return min_ + (index-0.5)*width_;
+    return min_ + index*width_;
   }
+  if (loc == "max") {
+    if (centering_) return min_ + (index+0.5)*width_;
+    return min_ + (index+1)*width_;
+  } 
+  // Return middle value.
+  if (centering_) return min_ + index*width_;
+  return min_ + (index+0.5)*width_;
 }
 
 
