@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include "mpi_setting.hpp"
-#include "stop_callback.hpp"
+#include "is_time_out.hpp"
 #include "histo_env_manager.hpp"
 #include "window.hpp"
 #include "wl_params.hpp"
@@ -21,7 +21,7 @@ template <typename Model>
 int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
-    StopCallback stop_callback, bool from_the_top);
+    double timelimit_secs, bool from_the_top);
 int generate_partner(std::mt19937 &engine, int exchange_pattern,
     const MPIV &mpiv);
 template <typename Model>
@@ -38,11 +38,12 @@ template <typename Model>
 int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
-    StopCallback stop_callback, bool from_the_top) {
+    double timelimit_secs, bool from_the_top) {
   Model &model(*model_ptr);
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
   MPI_Status status;
+  IsTimeOut is_time_out(timelimit_secs);
   // For log files.
   std::string log_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       ".json";
@@ -74,7 +75,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       ln_dos[histo_env.GetIndex(model.GetVal())] += wl_params.lnf();
     }
   } else {
-    //// Read log files and check consistency.
+    // Read log files.
     std::ifstream ifs_log(log_file_name, std::ios::in);
     bool is_consistent;
     if(mpiv.myid() == 0) {
@@ -82,20 +83,19 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     }
     MPI_Bcast(&is_consistent, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     if (!is_consistent) return -1; // Error occured.
-    // Read log for model.
     set_from_log_json(&ifs_log, &wl_params, &ln_dos, engine, &histogram,
         &swap_count_down, &exchange_pattern, &lnf_slowest);
+    // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
     model.SetFromLog(&ifs_model_log);
   }
   // Main Wang-Landau routine.
   while (lnf_slowest > wl_params.lnfmin()) {
     // Check elapsed time.
-    if (stop_callback()) {
-      ////
-      std::cout << "stop" << std::endl;
-      ////
-      // Leave log files and stop.
+    bool should_stop = is_time_out();
+    MPI_Bcast(&should_stop, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+    if (should_stop) {
+      // Leave log files.
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
           histogram, swap_count_down, exchange_pattern, lnf_slowest);
       model.WriteState(&ofs_model_log);

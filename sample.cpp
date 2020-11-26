@@ -10,7 +10,7 @@
 #include "include/window.hpp"
 #include "include/wl_params.hpp"
 #include "include/rewl.hpp"
-#include "include/stop_callback.hpp"
+// Model
 #include "model_sample/lattice/graph.hpp"
 #include "model_sample/ferro_ising.hpp"
 
@@ -107,12 +107,11 @@ int main(int argc, char *argv[]) {
   }
   // Program control.
   double timelimit_secs = atof(argv[5]);
-  StopCallback stop_callback(mpiv, timelimit_secs);
   bool from_the_top = atoi(argv[6]);
   int running_state;
   // REWL routine.
   running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
-      window, &mpiv, engine, stop_callback, from_the_top);
+      window, &mpiv, engine, timelimit_secs, from_the_top);
   if (running_state == 1) {
     // Output.
     merge_ln_dos(&ln_dos, mpiv);
