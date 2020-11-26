@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "../include/lattice/graph.hpp"
+#include "../lattice/graph.hpp"
 
 
 int main() {

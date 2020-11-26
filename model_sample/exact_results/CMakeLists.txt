@@ -9,4 +9,4 @@ message(STATUS "Build type: " ${CMAKE_BUILD_TYPE})
 find_package(Eigen3 REQUIRED)
 include(${EIGEN3_USE_FILE})
 
-add_executable(exact.app exact.cpp)
+add_executable(exact_ferro_ising.app exact_ferro_ising.cpp)
