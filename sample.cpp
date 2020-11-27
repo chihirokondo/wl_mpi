@@ -16,7 +16,7 @@
 
 
 int main(int argc, char *argv[]) {
-  int numprocs, myid, multiple;
+  int numprocs, myid, num_walkers_window;
   MPI_Status status;
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
@@ -44,11 +44,10 @@ int main(int argc, char *argv[]) {
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  // mpiv.multiple() is # of walkers per window.
-  multiple = atoi(argv[2]);
+  num_walkers_window = atoi(argv[2]);
   try {
-    // "numprocs" must be a multiple of "multiple".
-    if (numprocs%multiple != 0) throw 0;
+    // "numprocs" must be a multiple of "num_walkers_window".
+    if (numprocs%num_walkers_window != 0) throw 0;
   }
   catch (int err_status) {
     if (myid == 0) {
@@ -59,12 +58,12 @@ int main(int argc, char *argv[]) {
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  MPIV mpiv(numprocs, myid, multiple);
+  MPIV mpiv(numprocs, myid, num_walkers_window);
   if (mpiv.num_windows()>1) {
     // Create new groups and communicators for each window.
     mpiv.create_local_communicator();
     // Get the local id (in the local communicators).
-    mpiv.set_local_id();
+    mpiv.set_id_in_exchblock();
   }
   // Model dependent variables.
   int dim = 2;
@@ -115,9 +114,9 @@ int main(int argc, char *argv[]) {
   if (running_state == 1) {
     // Output.
     merge_ln_dos(&ln_dos, mpiv);
-    if (mpiv.myid()%mpiv.multiple() == 0) {
+    if (mpiv.myid()%mpiv.num_walkers_window() == 0) {
       std::string filename = "./rawdata/ln_val_window" +
-          std::to_string(mpiv.myid()/mpiv.multiple()) + ".dat";
+          std::to_string(mpiv.myid()/mpiv.num_walkers_window()) + ".dat";
       std::ofstream ofs(filename, std::ios::out);
       ofs << "# dim: " << dim << ", length: " << length << "\n";
       ofs << "# condition_type: " << "sum" << "\n";

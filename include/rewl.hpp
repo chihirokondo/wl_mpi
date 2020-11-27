@@ -24,10 +24,10 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top);
-int generate_partner(std::mt19937 &engine, int exchange_pattern,
+int generate_partner(std::mt19937 &engine, int exch_pattern_id,
     const MPIV &mpiv);
 template <typename Model>
-void exchange_config(Model *model_ptr, int partner, int exchange_pattern,
+void exch_config(Model *model_ptr, int partner, int exch_pattern_id,
     const std::vector<double> &ln_dos, const HistoEnvManager &histo_env,
     const WindowManager &window, const MPIV &mpiv, std::mt19937 &engine);
 bool are_all_hists_flat(const WindowManager &window,
@@ -56,7 +56,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   int running_state = 0;
   std::vector<int> histogram(histo_env.num_bins(), 0);
   int swap_count_down = wl_params.swap_every();
-  int exchange_pattern = 0; // 0 or 1.
+  int exch_pattern_id = 0; // 0 or 1.
   double lnf_slowest = wl_params.lnf();
   if (from_the_top) {
     // Initialize the configuration.
@@ -81,7 +81,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     MPI_Bcast(&is_consistent, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     if (!is_consistent) return -1; // Error occured.
     set_from_log_json(&ifs_log, &wl_params, &ln_dos, engine, &histogram,
-        &swap_count_down, &exchange_pattern, &lnf_slowest);
+        &swap_count_down, &exch_pattern_id, &lnf_slowest);
     // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
     model.SetFromLog(&ifs_model_log);
@@ -94,7 +94,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     if (should_stop) {
       // Leave log files.
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-          histogram, swap_count_down, exchange_pattern, lnf_slowest);
+          histogram, swap_count_down, exch_pattern_id, lnf_slowest);
       model.WriteState(&ofs_model_log);
       return running_state;
     }
@@ -116,14 +116,14 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       // Start RE.
       if ((mpiv.num_windows()>1) && (swap_count_down==0)) {
         swap_count_down = wl_params.swap_every();
-        if (mpiv.num_windows()>2) exchange_pattern ^= 1;
-        mpiv.set_comm_id(exchange_pattern);
+        if (mpiv.num_windows()>2) exch_pattern_id ^= 1;
+        mpiv.set_comm_id(exch_pattern_id);
         // Get exchange partner.
-        int partner = generate_partner(engine, exchange_pattern, mpiv);
+        int partner = generate_partner(engine, exch_pattern_id, mpiv);
         MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
         if (partner != -1) {
           // Replica exchange.
-          exchange_config<Model>(&model, partner, exchange_pattern, ln_dos,
+          exch_config<Model>(&model, partner, exch_pattern_id, ln_dos,
               histo_env, window, mpiv, engine);
         }
         // Update histograms (independently of whether RE happened or not).
@@ -151,21 +151,22 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   ++running_state;
   // Leave log files.
   write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-      histogram, swap_count_down, exchange_pattern, lnf_slowest);
+      histogram, swap_count_down, exch_pattern_id, lnf_slowest);
   model.WriteState(&ofs_model_log);
   return running_state;
 }
 
 
-int generate_partner(std::mt19937 &engine, int exchange_pattern,
+int generate_partner(std::mt19937 &engine, int exch_pattern_id,
     const MPIV &mpiv) {
-  std::vector<size_t> partner_list(2*mpiv.multiple());
+  std::vector<size_t> partner_list(2*mpiv.num_walkers_window());
   // 'head-node' in the window determines pairs of flippartners.
-  if (mpiv.local_id(exchange_pattern) == 0) {
-    std::vector<size_t> pair_2nd_half(mpiv.multiple());
-    std::iota(pair_2nd_half.begin(), pair_2nd_half.end(), mpiv.multiple());
+  if (mpiv.id_in_exchblock(exch_pattern_id) == 0) {
+    std::vector<size_t> pair_2nd_half(mpiv.num_walkers_window());
+    std::iota(pair_2nd_half.begin(), pair_2nd_half.end(),
+        mpiv.num_walkers_window());
     std::shuffle(pair_2nd_half.begin(), pair_2nd_half.end(), engine);
-    for (size_t i=0; i<mpiv.multiple(); ++i) {
+    for (size_t i=0; i<mpiv.num_walkers_window(); ++i) {
       partner_list[i] = pair_2nd_half[i];
       partner_list[pair_2nd_half[i]] = i;
     }
@@ -175,13 +176,13 @@ int generate_partner(std::mt19937 &engine, int exchange_pattern,
   if (mpiv.comm_id() == -1) return -1;
   int partner;
   MPI_Scatter(&partner_list[0], 1, MPI_INT, &partner, 1, MPI_INT, 0,
-      mpiv.local_comm(mpiv.comm_id()));
+      mpiv.mpi_comm_exchblock());
   return partner;
 }
 
 
 template <typename Model>
-void exchange_config(Model *model_ptr, int partner, int exchange_pattern,
+void exch_config(Model *model_ptr, int partner, int exch_pattern_id,
     const std::vector<double> &ln_dos, const HistoEnvManager &histo_env,
     const WindowManager &window, const MPIV &mpiv, std::mt19937 &engine) {
   MPI_Status status;
@@ -189,7 +190,7 @@ void exchange_config(Model *model_ptr, int partner, int exchange_pattern,
   // Get the "value" from my exchange partner.
   double val_partner = model.val();
   MPI_Sendrecv_replace(&val_partner, 1, MPI_DOUBLE, partner, 1, partner, 1,
-      mpiv.local_comm(mpiv.comm_id()), &status);
+      mpiv.mpi_comm_exchblock(), &status);
   double my_frac;
   if ((val_partner < window.valmin()) || (window.valmax() < val_partner)) {
     my_frac = -1.0;
@@ -198,34 +199,33 @@ void exchange_config(Model *model_ptr, int partner, int exchange_pattern,
     size_t my_i = histo_env.GetIndex(model.val());
     my_frac = std::exp(ln_dos[partner_i] - ln_dos[my_i]);
   }
-  bool is_exchange_accepted;
-  if (mpiv.local_id(exchange_pattern) < mpiv.multiple()) {
+  bool is_exch_accepted;
+  if (mpiv.id_in_exchblock(exch_pattern_id) < mpiv.num_walkers_window()) {
     // Receiver calculate combined exchange probability.
     // Get my partner's part of the exchange probability.
     double other_frac;
-    MPI_Recv(&other_frac, 1, MPI_DOUBLE, partner, 2,
-        mpiv.local_comm(mpiv.comm_id()), &status);
+    MPI_Recv(&other_frac, 1, MPI_DOUBLE, partner, 2, mpiv.mpi_comm_exchblock(),
+        &status);
     // Calculate combined exchange probability and do exchange trial.
     std::uniform_real_distribution<> uniform01{0., 1.};
     if ((my_frac>0.0) && (other_frac>0.0) &&
         (uniform01(engine)<my_frac*other_frac)) {
-      is_exchange_accepted = true;
+      is_exch_accepted = true;
     } else {
-      is_exchange_accepted = false;
+      is_exch_accepted = false;
     }
-    MPI_Send(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
-        mpiv.local_comm(mpiv.comm_id()));
+    MPI_Send(&is_exch_accepted, 1, MPI_CXX_BOOL, partner, 3,
+        mpiv.mpi_comm_exchblock());
   } else {
     // Send my part of exchange probability and await decision.
-    MPI_Send(&my_frac, 1, MPI_DOUBLE, partner, 2,
-        mpiv.local_comm(mpiv.comm_id()));
-    MPI_Recv(&is_exchange_accepted, 1, MPI_CXX_BOOL, partner, 3,
-        mpiv.local_comm(mpiv.comm_id()), &status);
+    MPI_Send(&my_frac, 1, MPI_DOUBLE, partner, 2, mpiv.mpi_comm_exchblock());
+    MPI_Recv(&is_exch_accepted, 1, MPI_CXX_BOOL, partner, 3,
+        mpiv.mpi_comm_exchblock(), &status);
   } // Now all process know whether the replica exchange will be executed.
-  if (is_exchange_accepted) {
+  if (is_exch_accepted) {
     // Exchange configuration.
     model.set_val(val_partner);
-    model.ExchangeConfig(partner, mpiv.local_comm(mpiv.comm_id()));
+    model.ExchangeConfig(partner, mpiv.mpi_comm_exchblock());
   }
 }
 
@@ -249,24 +249,25 @@ bool are_all_hists_flat(const WindowManager &window,
   if ((double)min_histo < flatness*average) my_flat = false;
   // Now talk to all the other walkers in the window.
   bool other_flat;
-  if (mpiv.myid()%mpiv.multiple() == 0) {
+  if (mpiv.myid()%mpiv.num_walkers_window() == 0) {
     // 'root' in window, receive individual flatnesses.
-    for (int i=1; i<mpiv.multiple(); ++i) {
+    for (int i=1; i<mpiv.num_walkers_window(); ++i) {
       MPI_Recv(&other_flat, 1, MPI_CXX_BOOL, mpiv.myid()+i, 66, MPI_COMM_WORLD,
           &status);
       my_flat *= other_flat;
     }
-    for (int i=1; i<mpiv.multiple(); ++i) {
+    for (int i=1; i<mpiv.num_walkers_window(); ++i) {
       // Let everybody know.
       MPI_Send(&my_flat, 1, MPI_CXX_BOOL, mpiv.myid()+i, 88, MPI_COMM_WORLD);
     }
   } else {
     // Send individual flatness and receive 'merged' flatness.
     MPI_Send(&my_flat, 1, MPI_CXX_BOOL,
-        (mpiv.myid()/mpiv.multiple())*mpiv.multiple(), 66, MPI_COMM_WORLD);
+        (mpiv.myid()/mpiv.num_walkers_window())*mpiv.num_walkers_window(), 66,
+        MPI_COMM_WORLD);
     MPI_Recv(&other_flat, 1, MPI_CXX_BOOL,
-        (mpiv.myid()/mpiv.multiple())*mpiv.multiple(), 88, MPI_COMM_WORLD,
-        &status);
+        (mpiv.myid()/mpiv.num_walkers_window())*mpiv.num_walkers_window(), 88,
+        MPI_COMM_WORLD, &status);
     my_flat = other_flat;  // Replace individual flatness by merged one.
   }
   return my_flat;
@@ -279,9 +280,9 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
   MPI_Status status;
   std::vector<double> &ln_dos(*ln_dos_ptr);
   std::vector<double> ln_dos_buf = ln_dos;
-  if (mpiv.myid()%mpiv.multiple() == 0) {
+  if (mpiv.myid()%mpiv.num_walkers_window() == 0) {
     // 'root' in window, receive individual g(E) and send merged g(E).
-    for (int i=1; i<mpiv.multiple(); ++i) {
+    for (int i=1; i<mpiv.num_walkers_window(); ++i) {
       MPI_Recv(&ln_dos_buf[0], ln_dos.size(), MPI_DOUBLE, mpiv.myid()+i, 77,
           MPI_COMM_WORLD, &status);
       for (size_t j=0; j<ln_dos.size(); ++j) ln_dos[j] += ln_dos_buf[j];
@@ -289,7 +290,7 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
     int num_bins = 0;
     double mean = 0.0;
     for (size_t i=0; i<ln_dos.size(); ++i) {
-      ln_dos[i] /= mpiv.multiple();
+      ln_dos[i] /= mpiv.num_walkers_window();
       mean += ln_dos[i];
       if (ln_dos[i] != 0.0) ++num_bins;
     }
@@ -297,17 +298,18 @@ void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
     for (double &ln_dos_i : ln_dos) {
       if (ln_dos_i != 0.0) ln_dos_i -= mean;
     }
-    for (int i=1; i<mpiv.multiple(); ++i) {
+    for (int i=1; i<mpiv.num_walkers_window(); ++i) {
       MPI_Send(&ln_dos[0], ln_dos.size(), MPI_DOUBLE, mpiv.myid()+i, 99,
           MPI_COMM_WORLD);
     }
   } else {
     // Send individual g(E) and receive merged g(E).
     MPI_Send(&ln_dos[0], ln_dos.size(), MPI_DOUBLE,
-        (mpiv.myid()/mpiv.multiple())*mpiv.multiple(), 77, MPI_COMM_WORLD);
+        (mpiv.myid()/mpiv.num_walkers_window())*mpiv.num_walkers_window(), 77,
+        MPI_COMM_WORLD);
     MPI_Recv(&ln_dos[0], ln_dos.size(), MPI_DOUBLE,
-        (mpiv.myid()/mpiv.multiple())*mpiv.multiple(), 99, MPI_COMM_WORLD,
-        &status);
+        (mpiv.myid()/mpiv.num_walkers_window())*mpiv.num_walkers_window(), 99,
+        MPI_COMM_WORLD, &status);
   }
 }
 

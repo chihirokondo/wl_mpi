@@ -17,25 +17,25 @@ using json = nlohmann::json;
 void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos,
     const std::mt19937 &engine, const std::vector<int> &histogram,
-    int swap_count_down, int exchange_pattern, double lnf_slowest);
+    int swap_count_down, int exch_pattern_id, double lnf_slowest);
 bool check_log_json(std::ifstream *ifs_ptr, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos);
 void set_from_log_json(std::ifstream *ifs_ptr, WLParams *wl_params_ptr,
     std::vector<double> *ln_dos_ptr, std::mt19937 &engine,
     std::vector<int> *histogram_ptr, int *swap_count_down_ptr,
-    int *exchange_pattern_ptr, double *lnf_slowest_ptr);
+    int *exch_pattern_id_ptr, double *lnf_slowest_ptr);
 
 
 void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos,
     const std::mt19937 &engine, const std::vector<int> &histogram,
-    int swap_count_down, int exchange_pattern, double lnf_slowest) {
+    int swap_count_down, int exch_pattern_id, double lnf_slowest) {
   std::ofstream &ofs(*ofs_ptr);
   json log_json;
   // Mapping.
   log_json["last_time_state"] = running_state;
   log_json["mpi_setting"]["num_procs_tot"] = mpiv.numprocs();
-  log_json["mpi_setting"]["num_procs_per_window"] = mpiv.multiple();
+  log_json["mpi_setting"]["num_procs_per_window"] = mpiv.num_walkers_window();
   log_json["wang_landau_params"]["sweeps"] = wl_params.sweeps();
   log_json["wang_landau_params"]["check_flatness_every"] =
       wl_params.check_flatness_every();
@@ -53,7 +53,7 @@ void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
   json json_histo(histogram);
   log_json["histogram"] = json_histo;
   log_json["swap_count_down"] = swap_count_down;
-  log_json["exchange_pattern"] = exchange_pattern;
+  log_json["exch_pattern_id"] = exch_pattern_id;
   log_json["lnf_slowest"] = lnf_slowest;
   // Output with pretty printing.
   ofs << std::setw(4) << log_json << std::endl;
@@ -72,7 +72,7 @@ bool check_log_json(std::ifstream *ifs_ptr, const MPIV &mpiv,
   if (log_json["mpi_setting"]["num_procs_tot"].get<int>() !=
       mpiv.numprocs()) return false;
   if (log_json["mpi_setting"]["num_procs_per_window"].get<int>() !=
-      mpiv.multiple()) return false;
+      mpiv.num_walkers_window()) return false;
   // WL parameters.
   if (log_json["wang_landau_params"]["sweeps"].get<int>() !=
       wl_params.sweeps()) return false;
@@ -94,7 +94,7 @@ bool check_log_json(std::ifstream *ifs_ptr, const MPIV &mpiv,
 void set_from_log_json(std::ifstream *ifs_ptr, WLParams *wl_params_ptr,
     std::vector<double> *ln_dos_ptr, std::mt19937 &engine,
     std::vector<int> *histogram_ptr, int *swap_count_down_ptr,
-    int *exchange_pattern_ptr, double *lnf_slowest_ptr) {
+    int *exch_pattern_id_ptr, double *lnf_slowest_ptr) {
   std::ifstream &ifs(*ifs_ptr);
   WLParams &wl_params(*wl_params_ptr);
   std::vector<double> &ln_dos(*ln_dos_ptr);
@@ -107,7 +107,7 @@ void set_from_log_json(std::ifstream *ifs_ptr, WLParams *wl_params_ptr,
   iss >> engine;
   histogram = log_json["histogram"].get<std::vector<int>>();
   *swap_count_down_ptr = log_json["swap_count_down"].get<int>();
-  *exchange_pattern_ptr = log_json["exchange_pattern"].get<int>();
+  *exch_pattern_id_ptr = log_json["exch_pattern_id"].get<int>();
   *lnf_slowest_ptr = log_json["lnf_slowest"].get<double>();
 }
 
