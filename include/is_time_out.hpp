@@ -26,6 +26,6 @@ bool IsTimeOut::operator()() const {
       timelimit_secs_;
   return is_time_out;
 }
-
+// hoge.
 
 #endif // WANGLANDAU_IS_TIME_OUT_H_

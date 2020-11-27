@@ -209,7 +209,6 @@ void exchange_config(Model *model_ptr, int partner, int exchange_pattern,
     std::uniform_real_distribution<> uniform01{0., 1.};
     if ((my_frac>0.0) && (other_frac>0.0) &&
         (uniform01(engine)<my_frac*other_frac)) {
-      // Exchange accepted.
       is_exchange_accepted = true;
     } else {
       is_exchange_accepted = false;
