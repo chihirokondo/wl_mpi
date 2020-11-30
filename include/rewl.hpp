@@ -20,19 +20,18 @@
 
 
 template <typename Model>
-int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+inline int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top);
-int generate_partner(std::mt19937 &engine, int exch_pattern_id,
-    const MPIV &mpiv);
+inline int generate_partner(std::mt19937 &engine, const MPIV &mpiv);
 template <typename Model>
-void exch_config(Model *model_ptr, int partner, int exch_pattern_id,
+inline void exch_config(Model *model_ptr, int partner,
     const std::vector<double> &ln_dos, const HistoEnvManager &histo_env,
     const WindowManager &window, const MPIV &mpiv, std::mt19937 &engine);
-bool are_all_hists_flat(const WindowManager &window,
+inline bool are_all_hists_flat(const WindowManager &window,
     const std::vector<int> &histogram, double flatness, const MPIV &mpiv);
-void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
+inline void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
 
 
 template <typename Model>
@@ -56,7 +55,6 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   int running_state = 0;
   std::vector<int> histogram(histo_env.num_bins(), 0);
   int swap_count_down = wl_params.swap_every();
-  int exch_pattern_id = 0; // 0 or 1.
   double lnf_slowest = wl_params.lnf();
   if (from_the_top) {
     // Initialize the configuration.
@@ -80,8 +78,8 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     }
     MPI_Bcast(&is_consistent, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     if (!is_consistent) return -1; // Error occured.
-    set_from_log_json(&ifs_log, &wl_params, &ln_dos, engine, &histogram,
-        &swap_count_down, &exch_pattern_id, &lnf_slowest);
+    set_from_log_json(&ifs_log, &mpiv, &wl_params, &ln_dos, &engine, &histogram,
+        &swap_count_down, &lnf_slowest);
     // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
     model.SetFromLog(&ifs_model_log);
@@ -94,7 +92,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     if (should_stop) {
       // Leave log files.
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-          histogram, swap_count_down, exch_pattern_id, lnf_slowest);
+          histogram, swap_count_down, lnf_slowest);
       model.WriteState(&ofs_model_log);
       return running_state;
     }
@@ -116,15 +114,14 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       // Start RE.
       if ((mpiv.num_windows()>1) && (swap_count_down==0)) {
         swap_count_down = wl_params.swap_every();
-        if (mpiv.num_windows()>2) exch_pattern_id ^= 1;
-        mpiv.set_comm_id(exch_pattern_id);
-        // Get exchange partner.
-        int partner = generate_partner(engine, exch_pattern_id, mpiv);
-        MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
-        if (partner != -1) {
+        mpiv.switch_exch_pattern();
+        if (mpiv.have_exch_partner()) {
+          // Get exchange partner.
+          int partner = generate_partner(engine, mpiv);
+          MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
           // Replica exchange.
-          exch_config<Model>(&model, partner, exch_pattern_id, ln_dos,
-              histo_env, window, mpiv, engine);
+          exch_config<Model>(&model, partner, ln_dos, histo_env, window, mpiv,
+              engine);
         }
         // Update histograms (independently of whether RE happened or not).
         ln_dos[histo_env.GetIndex(model.val())] += wl_params.lnf();
@@ -142,38 +139,29 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     double lnf_tmp = wl_params.lnf();
     MPI_Allreduce(&lnf_tmp, &lnf_slowest, 1, MPI_DOUBLE, MPI_MAX,
         MPI_COMM_WORLD);
-    ////
-    if (mpiv.myid() == 0) {
-      std::cout << "lnf_slowest : " << lnf_slowest << std::endl;
-    }
-    ////
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
   ++running_state;
   // Leave log files.
   write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-      histogram, swap_count_down, exch_pattern_id, lnf_slowest);
+      histogram, swap_count_down, lnf_slowest);
   model.WriteState(&ofs_model_log);
   return running_state;
 }
 
 
-int generate_partner(std::mt19937 &engine, int exch_pattern_id,
-    const MPIV &mpiv) {
+int generate_partner(std::mt19937 &engine, const MPIV &mpiv) {
   std::vector<size_t> partner_list(2*mpiv.num_walkers_window());
   // 'head-node' in the window determines pairs of flippartners.
-  if (mpiv.id_in_exchblock(exch_pattern_id) == 0) {
-    std::vector<size_t> pair_2nd_half(mpiv.num_walkers_window());
-    std::iota(pair_2nd_half.begin(), pair_2nd_half.end(),
+  if (mpiv.id_in_exchblock() == 0) {
+    std::vector<size_t> latter_window(mpiv.num_walkers_window());
+    std::iota(latter_window.begin(), latter_window.end(),
         mpiv.num_walkers_window());
-    std::shuffle(pair_2nd_half.begin(), pair_2nd_half.end(), engine);
+    std::shuffle(latter_window.begin(), latter_window.end(), engine);
     for (size_t i=0; i<mpiv.num_walkers_window(); ++i) {
-      partner_list[i] = pair_2nd_half[i];
-      partner_list[pair_2nd_half[i]] = i;
+      partner_list[i] = latter_window[i];
+      partner_list[latter_window[i]] = i;
     }
   }
-  // At this point, every walker has a swap partner assigned,
-  // now they must be communicated.
-  if (mpiv.comm_id() == -1) return -1;
   int partner;
   MPI_Scatter(&partner_list[0], 1, MPI_INT, &partner, 1, MPI_INT, 0,
       mpiv.mpi_comm_exchblock());
@@ -182,7 +170,7 @@ int generate_partner(std::mt19937 &engine, int exch_pattern_id,
 
 
 template <typename Model>
-void exch_config(Model *model_ptr, int partner, int exch_pattern_id,
+void exch_config(Model *model_ptr, int partner,
     const std::vector<double> &ln_dos, const HistoEnvManager &histo_env,
     const WindowManager &window, const MPIV &mpiv, std::mt19937 &engine) {
   MPI_Status status;
@@ -200,7 +188,7 @@ void exch_config(Model *model_ptr, int partner, int exch_pattern_id,
     my_frac = std::exp(ln_dos[partner_i] - ln_dos[my_i]);
   }
   bool is_exch_accepted;
-  if (mpiv.id_in_exchblock(exch_pattern_id) < mpiv.num_walkers_window()) {
+  if (mpiv.id_in_exchblock() < mpiv.num_walkers_window()) {
     // Receiver calculate combined exchange probability.
     // Get my partner's part of the exchange probability.
     double other_frac;

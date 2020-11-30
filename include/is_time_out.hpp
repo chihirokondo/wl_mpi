@@ -18,7 +18,7 @@ class IsTimeOut {
 };
 
 
-bool IsTimeOut::operator()() const {
+inline bool IsTimeOut::operator()() const {
   // true = (time is out), false = (time is "in").
   std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
   bool is_time_out =

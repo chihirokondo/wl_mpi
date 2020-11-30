@@ -59,12 +59,6 @@ int main(int argc, char *argv[]) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   MPIV mpiv(numprocs, myid, num_walkers_window);
-  if (mpiv.num_windows()>1) {
-    // Create new groups and communicators for each window.
-    mpiv.create_local_communicator();
-    // Get the local id (in the local communicators).
-    mpiv.set_id_in_exchblock();
-  }
   // Model dependent variables.
   int dim = 2;
   int length = 4;
@@ -138,9 +132,8 @@ int main(int argc, char *argv[]) {
           << "some conditions have been changed."
           << std::endl;
     }
-    MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
   MPI_Finalize();
   return 0;
+  //// result state.
 }

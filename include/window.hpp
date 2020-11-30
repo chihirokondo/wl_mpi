@@ -23,7 +23,7 @@ class WindowManager {
 };
 
 
-WindowManager::WindowManager(HistoEnvManager histo_env, MPIV mpiv,
+inline WindowManager::WindowManager(HistoEnvManager histo_env, MPIV mpiv,
     double overlap) {
   double width = (histo_env.maxval()-histo_env.minval()) /
       (1 + (mpiv.num_windows()-1)*(1-overlap));
