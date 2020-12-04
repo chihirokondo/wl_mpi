@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
   // REWL routine.
   running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
       window, &mpiv, engine, timelimit_secs, from_the_top);
+  int result = 0;
   if (running_state == 1) {
     // Output.
     merge_ln_dos(&ln_dos, mpiv);
@@ -132,8 +133,8 @@ int main(int argc, char *argv[]) {
           << "some conditions have been changed."
           << std::endl;
     }
+    result = running_state;
   }
   MPI_Finalize();
-  return 0;
-  //// result state.
+  return result;
 }
