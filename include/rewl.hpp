@@ -116,13 +116,13 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
         swap_count_down = wl_params.swap_every();
         mpiv.switch_exch_pattern();
         if (mpiv.have_exch_partner()) {
-          // Get exchange partner.
+          // Get exchange partner.     
           int partner = generate_partner(engine, mpiv);
-          MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
           // Replica exchange.
           exch_config<Model>(&model, partner, ln_dos, histo_env, window, mpiv,
               engine);
         }
+        MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
         // Update histograms (independently of whether RE happened or not).
         ln_dos[histo_env.GetIndex(model.val())] += wl_params.lnf();
         histogram[histo_env.GetIndex(model.val())] += 1;
