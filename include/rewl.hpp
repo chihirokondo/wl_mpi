@@ -69,6 +69,9 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       }
       ln_dos[histo_env.GetIndex(model.val())] += wl_params.lnf();
     }
+    for (size_t i=0; i<ln_dos.size(); ++i) {
+      if (i<window.imin() || i>window.imax()) ln_dos[i] = 0.0;
+    }
   } else {
     // Read log files.
     std::ifstream ifs_log(log_file_name, std::ios::in);
@@ -150,7 +153,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
 
 
 int generate_partner(std::mt19937 &engine, const MPIV &mpiv) {
-  std::vector<size_t> partner_list(2*mpiv.num_walkers_window());
+  std::vector<int> partner_list(2*mpiv.num_walkers_window());
   // 'head-node' in the window determines pairs of flippartners.
   if (mpiv.id_in_exchblock() == 0) {
     std::vector<size_t> latter_window(mpiv.num_walkers_window());

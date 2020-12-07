@@ -30,7 +30,8 @@ int main(int argc, char *argv[]) {
       std::cerr
           << "ERROR: Unexpected number of command line arguments!\n"
           << "       Expect 6 arguments, " << argc - 1 << " were provided.\n"
-          << "Syntax: ./a.out [arg1] [arg2] [arg3] [arg4] [arg5] [arg6] \n\n"
+          << "Syntax: " << argv[0]
+          << " [arg1] [arg2] [arg3] [arg4] [arg5] [arg6] \n\n"
           << "Please provide the following command line arguments:\n"
           << "1. Overlap between consecutive windows."
           << " [double, 0 <= overlap <= 1]\n"
@@ -130,7 +131,7 @@ int main(int argc, char *argv[]) {
       std::cerr
           << "ERROR: Cannot restart the experiment.\n"
           << "       Last-time job was completely finished or "
-          << "some conditions have been changed."
+          << "some conditions have unexpectedly been changed."
           << std::endl;
     }
     result = running_state;
