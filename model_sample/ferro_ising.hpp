@@ -30,8 +30,8 @@ class FerroIsing {
     spin_config_[site_] -= 2*spin_config_[site_];
   }
   void ExchangeConfig(int partner, MPI_Comm local_comm);
-  void WriteState(std::ofstream *ofs_ptr);
-  void SetFromLog(std::ifstream *ifs_ptr);
+  void StoreLog(std::ofstream *ofs_ptr);
+  void SetFromLog(std::ifstream &ifs);
   // Gettor and settor.
   double val() const {return energy_;}
   void set_val(double energy_new) {energy_ = energy_new;}
@@ -67,7 +67,7 @@ void FerroIsing::ExchangeConfig(int partner, MPI_Comm local_comm) {
 }
 
 
-void FerroIsing::WriteState(std::ofstream *ofs_ptr) {
+void FerroIsing::StoreLog(std::ofstream *ofs_ptr) {
   std::ofstream &ofs(*ofs_ptr);
   json log_json;
   // Main information.
@@ -82,11 +82,10 @@ void FerroIsing::WriteState(std::ofstream *ofs_ptr) {
 }
 
 
-void FerroIsing::SetFromLog(std::ifstream *ifs_ptr) {
-  std::ifstream &ifs(*ifs_ptr);
+void FerroIsing::SetFromLog(std::ifstream &ifs) {
   json log_json;
   ifs >> log_json;
-  energy_ = log_json["energy"];
+  energy_ = log_json["energy"].get<double>();
   spin_config_ = log_json["spin_configuration"].get<std::vector<int>>();
 }
 

@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
   MPIV mpiv(numprocs, myid, num_walkers_window);
   // Model dependent variables.
   int dim = 2;
-  int length = 4;
+  int length = 16;
   lattice::graph lat = lattice::graph::simple(dim, length);
   double condition_value = std::pow(2.0, (double)lat.num_sites());
   int sweeps = lat.num_sites();

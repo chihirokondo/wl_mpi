@@ -50,8 +50,6 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       ".json";
   std::string model_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       "_model_state";
-  std::ofstream ofs_log(log_file_name, std::ios::out);
-  std::ofstream ofs_model_log(model_file_name, std::ios::out);
   int running_state = 0;
   std::vector<int> histogram(histo_env.num_bins(), 0);
   int swap_count_down = wl_params.swap_every();
@@ -76,16 +74,12 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     // Read log files.
     std::ifstream ifs_log(log_file_name, std::ios::in);
     bool is_consistent;
-    if (mpiv.myid() == 0) {
-      is_consistent = check_log_json(&ifs_log, mpiv, wl_params, ln_dos);
-    }
-    MPI_Bcast(&is_consistent, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+    is_consistent = set_from_log_json(ifs_log, &mpiv, &wl_params, &ln_dos,
+        &engine, &histogram, &swap_count_down, &lnf_slowest);
     if (!is_consistent) return -1; // Error occured.
-    set_from_log_json(&ifs_log, &mpiv, &wl_params, &ln_dos, &engine, &histogram,
-        &swap_count_down, &lnf_slowest);
     // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
-    model.SetFromLog(&ifs_model_log);
+    model.SetFromLog(ifs_model_log);
   }
   // Main Wang-Landau routine.
   while (lnf_slowest > wl_params.lnfmin()) {
@@ -94,9 +88,11 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     MPI_Bcast(&should_stop, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     if (should_stop) {
       // Leave log files.
+      std::ofstream ofs_log(log_file_name, std::ios::out);
+      std::ofstream ofs_model_log(model_file_name, std::ios::out);
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
           histogram, swap_count_down, lnf_slowest);
-      model.WriteState(&ofs_model_log);
+      model.StoreLog(&ofs_model_log);
       return running_state;
     }
     for (int i=0; i<wl_params.check_flatness_every(); ++i) {
@@ -145,9 +141,11 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
   ++running_state;
   // Leave log files.
+  std::ofstream ofs_log(log_file_name, std::ios::out);
+  std::ofstream ofs_model_log(model_file_name, std::ios::out);
   write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
       histogram, swap_count_down, lnf_slowest);
-  model.WriteState(&ofs_model_log);
+  model.StoreLog(&ofs_model_log);
   return running_state;
 }
 

@@ -2,6 +2,8 @@
 #define WANGLANDAU_LOG_FOR_JSON_H_
 
 
+#include <mpi.h>
+#include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
@@ -18,9 +20,9 @@ inline void write_log_json(std::ofstream *ofs_ptr, int running_state,
     const MPIV &mpiv, const WLParams &wl_params,
     const std::vector<double> &ln_dos, const std::mt19937 &engine,
     const std::vector<int> &histogram, int swap_count_down, double lnf_slowest);
-inline bool check_log_json(std::ifstream *ifs_ptr, const MPIV &mpiv,
+inline bool check_log_json(const json &log_json, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos);
-inline void set_from_log_json(std::ifstream *ifs_ptr, MPIV *mpiv_ptr,
+inline bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
     WLParams *wl_params_ptr, std::vector<double> *ln_dos_ptr,
     std::mt19937 *engine_ptr, std::vector<int> *histogram_ptr,
     int *swap_count_down_ptr, double *lnf_slowest_ptr);
@@ -60,12 +62,8 @@ void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
 }
 
 
-bool check_log_json(std::ifstream *ifs_ptr, const MPIV &mpiv,
+bool check_log_json(const json &log_json, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos) {
-  std::ifstream &ifs(*ifs_ptr);
-  if (!ifs) return false;
-  json log_json;
-  ifs >> log_json;
   // Last state.
   if (log_json["last_time_state"].get<int>() == 1) return false;
   // MPI information.
@@ -91,11 +89,11 @@ bool check_log_json(std::ifstream *ifs_ptr, const MPIV &mpiv,
 }
 
 
-void set_from_log_json(std::ifstream *ifs_ptr, MPIV *mpiv_ptr,
+bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
     WLParams *wl_params_ptr, std::vector<double> *ln_dos_ptr,
     std::mt19937 *engine_ptr, std::vector<int> *histogram_ptr,
     int *swap_count_down_ptr, double *lnf_slowest_ptr) {
-  std::ifstream &ifs(*ifs_ptr);
+  if (!ifs) return false;
   MPIV &mpiv(*mpiv_ptr);
   WLParams &wl_params(*wl_params_ptr);
   std::vector<double> &ln_dos(*ln_dos_ptr);
@@ -103,6 +101,15 @@ void set_from_log_json(std::ifstream *ifs_ptr, MPIV *mpiv_ptr,
   std::mt19937 &engine(*engine_ptr);
   json log_json;
   ifs >> log_json;
+  // Check consistency before setting.
+  bool is_consistent;
+  if (mpiv.myid() == 0) {
+    is_consistent = check_log_json(log_json, mpiv, wl_params, ln_dos);
+  }
+  MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
+  MPI_Bcast(&is_consistent, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
+  if (!is_consistent) return false;
+  // Set parameters from log file.
   mpiv.set_exch_pattern_id(
       log_json["mpi_setting"]["exch_pattern_id"].get<int>());
   wl_params.set_lnf(log_json["wang_landau_params"]["lnf"].get<double>());
@@ -112,6 +119,7 @@ void set_from_log_json(std::ifstream *ifs_ptr, MPIV *mpiv_ptr,
   histogram = log_json["histogram"].get<std::vector<int>>();
   *swap_count_down_ptr = log_json["swap_count_down"].get<int>();
   *lnf_slowest_ptr = log_json["lnf_slowest"].get<double>();
+  return true;
 }
 
 
