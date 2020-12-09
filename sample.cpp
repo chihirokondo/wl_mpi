@@ -5,11 +5,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include "include/mpi_setting.hpp"
-#include "include/histo_env_manager.hpp"
-#include "include/window.hpp"
-#include "include/wl_params.hpp"
-#include "include/rewl.hpp"
+#include "include/wl_mpi.hpp"
 // Model
 #include "model_sample/lattice/graph.hpp"
 #include "model_sample/ferro_ising.hpp"
