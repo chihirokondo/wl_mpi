@@ -1,12 +1,21 @@
 # Parallelization of the Wang-Landau method by MPI
 ## How to build
+You can build sample.cpp with
+
 ~~~shell-session
+$ mkdir build
 $ cd build
-$ mkdir log
 $ cmake ..
 $ make
 ~~~
+
+When you use this package you need to create directory named log on your running
+directory.
+
 ## Requirements
+This package needs OpenMPI and Json for Modern C++.
+The latter is included as the git submodule.
+Code for sample model depends on Eigen/Dense.
 
 ## License
 The code is licensed under the [MIT License](https://opensource.org/licenses/MIT):
