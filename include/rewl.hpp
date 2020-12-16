@@ -31,7 +31,8 @@ inline void exch_config(Model *model_ptr, int partner,
     const WindowManager &window, const MPIV &mpiv, std::mt19937 &engine);
 inline bool are_all_hists_flat(const WindowManager &window,
     const std::vector<int> &histogram, double flatness, const MPIV &mpiv);
-inline void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv);
+inline void take_ave_in_window_bc(std::vector<double> *ln_dos_ptr,
+    const MPIV &mpiv);
 
 
 template <typename Model>
@@ -39,13 +40,18 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top) {
-  std::vector<double> &ln_dos(*ln_dos_ptr);
   Model &model(*model_ptr);
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
   MPI_Status status;
   IsTimeOut is_time_out(timelimit_secs);
-  // For log files.
+  std::vector<double> &ln_dos(*ln_dos_ptr);
+  // Initialize "ln_dos".
+  ln_dos.clear();
+  ln_dos.shrink_to_fit();
+  ln_dos.reserve(histo_env.num_bins());
+  for (size_t i=0; i<histo_env.num_bins(); ++i) ln_dos.push_back(0.0);
+  // Log file name.
   std::string log_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       ".json";
   std::string model_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
@@ -132,7 +138,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       wl_params.update_lnf();
       for (int &i : histogram) i = 0;
       // Merge g(E) estimators from multiple walkers in the same window.
-      merge_ln_dos(&ln_dos, mpiv);
+      take_ave_in_window_bc(&ln_dos, mpiv);
     }
     // Check progress from all other windows.
     double lnf_tmp = wl_params.lnf();
@@ -265,7 +271,7 @@ bool are_all_hists_flat(const WindowManager &window,
 }
 
 
-void merge_ln_dos(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
+void take_ave_in_window_bc(std::vector<double> *ln_dos_ptr, const MPIV &mpiv) {
   MPI_Status status;
   std::vector<double> &ln_dos(*ln_dos_ptr);
   std::vector<double> ln_dos_buf = ln_dos;

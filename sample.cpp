@@ -3,7 +3,6 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <string>
 #include <vector>
 #include "include/wl_mpi.hpp"
 // Model
@@ -19,7 +18,7 @@ int main(int argc, char *argv[]) {
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   // Check command line arguments.
   try {
-    if (argc != 7) throw 0;
+    if (argc != 5) throw 0;
   }
   catch (int err_status) {
     if (myid == 0) {
@@ -27,21 +26,17 @@ int main(int argc, char *argv[]) {
           << "ERROR: Unexpected number of command line arguments!\n"
           << "       Expect 6 arguments, " << argc - 1 << " were provided.\n"
           << "Syntax: " << argv[0]
-          << " [arg1] [arg2] [arg3] [arg4] [arg5] [arg6] \n\n"
+          << " [arg1] [arg2] [arg3] [arg4]  \n\n"
           << "Please provide the following command line arguments:\n"
-          << "1. Overlap between consecutive windows."
-          << " [double, 0 <= overlap <= 1]\n"
-          << "2. Number of walkers per window. [integer]\n"
-          << "3. Number of Monte Carlo steps between replica exchange."
-          << " [integer]\n"
-          << "4. Random number seed. [integer]\n"
-          << "5. Time limit (secs). [double]\n"
-          << "6. Should execute from the top. [integer (bool)]\n"
+          << "1. Number of walkers per window. [integer]\n"
+          << "2. Random number seed. [integer]\n"
+          << "3. Time limit (secs). [double]\n"
+          << "4. Should execute from the top. [integer (bool)]\n"
           << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  num_walkers_window = atoi(argv[2]);
+  num_walkers_window = atoi(argv[1]);
   try {
     // "numprocs" must be a multiple of "num_walkers_window".
     if (numprocs%num_walkers_window != 0) throw 0;
@@ -58,7 +53,7 @@ int main(int argc, char *argv[]) {
   MPIV mpiv(numprocs, myid, num_walkers_window);
   // Model dependent variables.
   int dim = 2;
-  int length = 16;
+  int length = 4;
   lattice::graph lat = lattice::graph::simple(dim, length);
   double condition_value = std::pow(2.0, (double)lat.num_sites());
   int sweeps = lat.num_sites();
@@ -70,11 +65,10 @@ int main(int argc, char *argv[]) {
   double lnf = 1.0;
   double lnfmin = 1e-8;
   double flatness = 0.95;
-  std::vector<double> ln_dos(histo_env.num_bins(), 0.0);
-  std::mt19937 engine(atoi(argv[4])+mpiv.myid());
+  std::mt19937 engine(atoi(argv[2])+mpiv.myid());
   // Replica exchange Wang-Landau (REWL) parameters.
-  double overlap = atof(argv[1]);
-  int swap_every = atoi(argv[3]);
+  double overlap = 0.75; // 0<= overlap <= 1.
+  int swap_every = 100;
   WLParams wl_params(sweeps, check_flatness_every, lnf, lnfmin, flatness,
       swap_every);
   // Settings for the windows.
@@ -89,39 +83,23 @@ int main(int argc, char *argv[]) {
   catch (int err_status) {
     if (mpiv.myid() == 0) {
       std::cerr
-          << "ERROR: Too many number of the windows or"
-          << " too few number of the bins were provided.\n"
+          << "ERROR: Width of the window is narrow compared to bin width\n"
           << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   // Program control.
-  double timelimit_secs = atof(argv[5]);
-  bool from_the_top = atoi(argv[6]);
+  double timelimit_secs = atof(argv[3]);
+  bool from_the_top = atoi(argv[4]);
   int running_state;
   // REWL routine.
+  std::vector<double> ln_dos;
   running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
       window, &mpiv, engine, timelimit_secs, from_the_top);
   int result = 0;
   if (running_state == 1) {
-    // Output.
-    merge_ln_dos(&ln_dos, mpiv);
-    if (mpiv.myid()%mpiv.num_walkers_window() == 0) {
-      std::string filename = "./rawdata/ln_val_window" +
-          std::to_string(mpiv.myid()/mpiv.num_walkers_window()) + ".dat";
-      std::ofstream ofs(filename, std::ios::out);
-      ofs << "# dim: " << dim << ", length: " << length << "\n";
-      ofs << "# condition_type: " << "sum" << "\n";
-      ofs << "# condition_value: " << condition_value << "\n";
-      ofs << "# sewing_point: " << window.isew() << "\n";
-      ofs << "# number_of_windows: " << mpiv.num_windows() << "\n";
-      ofs << "# value \t # lngV\n";
-      for (size_t i=window.imin(); i<=window.imax(); ++i) {
-        ofs << histo_env.GetVal(i, "mid") << "\t"
-            << std::scientific << std::setprecision(15) << ln_dos[i] << "\n";
-      }
-      ofs << std::endl;
-    }
+    take_ave_in_window_bc(&ln_dos, mpiv);
+    if (mpiv.num_windows()>1) joint_ln_dos(&ln_dos, window, mpiv);
   } else if (running_state == -1) {
     if (mpiv.myid() == 0) {
       std::cerr
@@ -131,6 +109,17 @@ int main(int argc, char *argv[]) {
           << std::endl;
     }
     result = running_state;
+  }
+  if ((running_state==1) && (mpiv.myid()==0)) {
+    std::ofstream ofs("ln_dos_jointed.dat", std::ios::out);
+    ofs << "# ferro ising model\n";
+    ofs << "# dim = " << dim << ", length = " << length << "\n";
+    ofs << "# energy\t # log (density of states)\n";
+    for (size_t i=0; i<ln_dos.size(); ++i) {
+      ofs << histo_env.GetVal(i, "mid") << "\t" << std::scientific
+          << std::setprecision(15) << ln_dos[i] << "\n";
+    }
+    ofs << std::endl;
   }
   MPI_Finalize();
   return result;

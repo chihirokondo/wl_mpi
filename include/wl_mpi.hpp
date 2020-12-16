@@ -10,6 +10,7 @@
 #include "rewl.hpp"
 #include "window.hpp"
 #include "wl_params.hpp"
+#include "joint.hpp"
 
 
 #endif // WANGLANDAU_WL_MPI_H_

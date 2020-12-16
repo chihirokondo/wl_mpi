@@ -15,11 +15,10 @@ class WindowManager {
   double valmax() const {return valmax_;}
   size_t imin() const {return imin_;}
   size_t imax() const {return imax_;}
-  size_t isew() const {return isew_;}
   size_t iwidth() const {return iwidth_;}
  private:
   double valmin_, valmax_;
-  size_t imin_, imax_, isew_, iwidth_;
+  size_t imin_, imax_, iwidth_;
 };
 
 
@@ -43,7 +42,6 @@ inline WindowManager::WindowManager(HistoEnvManager histo_env, MPIV mpiv,
     valmax_ = histo_env.maxval();
   }
   iwidth_ = imax_ - imin_;
-  isew_ = histo_env.GetIndex(valmin_+width*(1-overlap)) - imin_;
 }
 
 
