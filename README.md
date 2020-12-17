@@ -12,6 +12,10 @@ $ make
 When you use this package you need to create directory named log on your running
 directory.
 
+~~~shell-session
+$ mkdir log
+~~~
+
 ## Requirements
 This package needs OpenMPI and Json for Modern C++.
 The latter is included as the git submodule.
