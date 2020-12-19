@@ -82,7 +82,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     bool is_consistent;
     is_consistent = set_from_log_json(ifs_log, &mpiv, &wl_params, &ln_dos,
         &engine, &histogram, &swap_count_down, &lnf_slowest);
-    if (!is_consistent) return -1; // Error occured.
+    if (!is_consistent) return 255; // Error occured.
     // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
     model.SetFromLog(ifs_model_log);

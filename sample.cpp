@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
   if (running_state == 1) {
     take_ave_in_window_bc(&ln_dos, mpiv);
     if (mpiv.num_windows()>1) joint_ln_dos(&ln_dos, window, mpiv);
-  } else if (running_state == -1) {
+  } else if (running_state == 255) {
     if (mpiv.myid() == 0) {
       std::cerr
           << "ERROR: Cannot restart the experiment.\n"
