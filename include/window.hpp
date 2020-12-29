@@ -2,7 +2,9 @@
 #define WANGLANDAU_WINDOW_H_
 
 
+#include <stdexcept>
 #include <iostream>
+#include <string>
 #include "mpi_setting.hpp"
 #include "histo_env_manager.hpp"
 
@@ -24,6 +26,12 @@ class WindowManager {
 
 inline WindowManager::WindowManager(HistoEnvManager histo_env, MPIV mpiv,
     double overlap) {
+  if (overlap < 0 || overlap > 1) {
+    std::string message =
+        "ERROR: Provided argument \"overlap\" was out of range.";
+    message += "       Must be 0 <= \"overlap\" <=1.";
+    throw std::out_of_range(message);
+  }
   double width = (histo_env.maxval()-histo_env.minval()) /
       (1 + (mpiv.num_windows()-1)*(1-overlap));
   valmin_ = histo_env.minval() +
@@ -42,6 +50,11 @@ inline WindowManager::WindowManager(HistoEnvManager histo_env, MPIV mpiv,
     valmax_ = histo_env.maxval();
   }
   iwidth_ = imax_ - imin_;
+  if (iwidth_ < 1) {
+    std::string message = "ERROR: Width of the window is narrow ";
+    message += "compared to bin width\n";
+    throw std::out_of_range(message);
+  }
 }
 
 

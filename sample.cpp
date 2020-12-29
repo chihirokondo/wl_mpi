@@ -17,10 +17,7 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   // Check command line arguments.
-  try {
-    if (argc != 5) throw 0;
-  }
-  catch (int err_status) {
+  if (argc != 5)  {
     if (myid == 0) {
       std::cerr
           << "ERROR: Unexpected number of command line arguments!\n"
@@ -37,19 +34,6 @@ int main(int argc, char *argv[]) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   num_walkers_window = atoi(argv[1]);
-  try {
-    // "numprocs" must be a multiple of "num_walkers_window".
-    if (numprocs%num_walkers_window != 0) throw 0;
-  }
-  catch (int err_status) {
-    if (myid == 0) {
-      std::cerr
-          << "ERROR: Number of processes must be a multiple of"
-          << " the second command line argument.\n"
-          << std::endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
   MPIV mpiv(numprocs, myid, num_walkers_window);
   // Model dependent variables.
   int dim = 2;
@@ -71,28 +55,12 @@ int main(int argc, char *argv[]) {
   int swap_every = 100;
   WLParams wl_params(sweeps, check_flatness_every, lnf, lnfmin, flatness,
       swap_every);
-  // Settings for the windows.
   WindowManager window(histo_env, mpiv, overlap);
-  int width_index = window.iwidth();
-  int width_index_min;
-  MPI_Allreduce(&width_index, &width_index_min, 1, MPI_INT, MPI_MIN,
-      MPI_COMM_WORLD);
-  try {
-    if (width_index_min < 1) throw 0;
-  }
-  catch (int err_status) {
-    if (mpiv.myid() == 0) {
-      std::cerr
-          << "ERROR: Width of the window is narrow compared to bin width\n"
-          << std::endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
   // Program control.
   double timelimit_secs = atof(argv[3]);
   bool from_the_top = atoi(argv[4]);
-  int running_state;
   // REWL routine.
+  int running_state;
   std::vector<double> ln_dos;
   running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
       window, &mpiv, engine, timelimit_secs, from_the_top);

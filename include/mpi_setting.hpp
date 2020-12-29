@@ -2,8 +2,10 @@
 #define WANGLANDAU_MPI_H_
 
 
+#include <stdexcept>
 #include <mpi.h>
 #include <iostream>
+#include <string>
 #include <vector>
 
 
@@ -50,6 +52,12 @@ inline MPIV::MPIV(int numprocs, int myid, int num_walkers_window)
       myid_(myid),
       num_walkers_window_(num_walkers_window),
       num_windows_(numprocs/num_walkers_window) {
+  // "num_procs" must be a multiple of "num_walkers_window".
+  if (numprocs_%num_walkers_window_ != 0) {
+    std::string message = "ERROR: Number of processes must be a multiple of ";
+    message += "the second command line argument.\n";
+    throw std::invalid_argument(message);
+  }
   exch_pattern_id_ = 0; // 0 or 1.
   bool num_windows_is_odd = num_windows_%2 == 1;
   bool num_windows_is_even = num_windows_%2 == 0;
