@@ -1,6 +1,6 @@
 # Parallelization of the Wang-Landau method by MPI
-## How to build
-You can build sample.cpp with
+## How to build `sample.cpp`
+You can build `sample.cpp` with
 
 ~~~shell-session
 $ mkdir build
@@ -9,6 +9,7 @@ $ cmake ..
 $ make
 ~~~
 
+## How to use
 When you use this package you need to create directory named log on your running
 directory.
 
