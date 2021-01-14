@@ -1,4 +1,4 @@
-# Parallelization of the Wang-Landau method by MPI
+# MPI parallelization of the Wang-Landau method
 ## How to use
 The single file `inlcude/wl_mpi.hpp` is required to use this package.
 When you use this package you need to create directory named `log` on your running
