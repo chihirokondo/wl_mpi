@@ -5,7 +5,7 @@
 #include <fstream>
 #include <vector>
 #include "include/wl_mpi.hpp"
-// Model
+// Sample model (classical ferro magnetic ising model)
 #include "model_sample/lattice/graph.hpp"
 #include "model_sample/ferro_ising.hpp"
 
@@ -58,25 +58,12 @@ int main(int argc, char *argv[]) {
   double timelimit_secs = atof(argv[3]);
   bool from_the_top = atoi(argv[4]);
   // REWL routine.
-  int running_state;
   std::vector<double> ln_dos;
-  running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
+  int running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
       window, &mpiv, engine, timelimit_secs, from_the_top);
   int result = 0;
-  if (running_state == 1) {
-    take_ave_in_window_bc(&ln_dos, mpiv);
-    if (mpiv.num_windows()>1) joint_ln_dos(&ln_dos, window, mpiv);
-  } else if (running_state == 255) {
-    if (mpiv.myid() == 0) {
-      std::cerr
-          << "ERROR: Cannot restart the experiment.\n"
-          << "       Last-time job was completely finished or "
-          << "some conditions have unexpectedly been changed."
-          << std::endl;
-    }
-    result = running_state;
-  }
-  if ((running_state==1) && (mpiv.myid()==0)) {
+  if (running_state == 255) result = running_state;
+  if ((running_state == 1) && (mpiv.myid() == 0)) {
     std::ofstream ofs("ln_dos_jointed.dat", std::ios::out);
     ofs << "# ferro ising model\n";
     ofs << "# dim = " << dim << ", length = " << length << "\n";

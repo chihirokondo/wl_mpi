@@ -17,10 +17,17 @@
 #include "window.hpp"
 #include "wl_params.hpp"
 #include "log_for_json.hpp"
+#include "joint.hpp"
 
 
 template <typename Model>
 inline int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+    const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
+    double timelimit_secs, bool from_the_top);
+
+template <typename Model>
+inline int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top);
@@ -40,17 +47,44 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top) {
-  Model &model(*model_ptr);
-  WLParams &wl_params(*wl_params_ptr);
-  MPIV &mpiv(*mpiv_ptr);
-  MPI_Status status;
-  IsTimeOut is_time_out(timelimit_secs);
   std::vector<double> &ln_dos(*ln_dos_ptr);
   // Initialize "ln_dos".
   ln_dos.clear();
   ln_dos.shrink_to_fit();
   ln_dos.reserve(histo_env.num_bins());
   for (size_t i=0; i<histo_env.num_bins(); ++i) ln_dos.push_back(0.0);
+  Model &model(*model_ptr);
+  WLParams &wl_params(*wl_params_ptr);
+  MPIV &mpiv(*mpiv_ptr);
+  // Call rewl routine.
+  int runnig_state = rewl_main<Model>(&ln_dos, &model, histo_env, &wl_params,
+      window, &mpiv, engine, timelimit_secs, from_the_top);
+  // Post-processing.
+  if (runnig_state == 1) {
+    take_ave_in_window_bc(&ln_dos, mpiv);
+    if (mpiv.num_windows() > 1) joint_ln_dos(&ln_dos, window, mpiv);
+  } else if ((runnig_state==255) && (mpiv.myid()==0)) {
+    std::cerr
+        << "ERROR: Cannot restart the experiment.\n"
+        << "       Last-time job was completely finished or "
+        << "some conditions have unexpectedly been changed."
+        << std::endl;
+  }
+  return runnig_state;
+}
+
+
+template <typename Model>
+int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+    const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
+    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
+    double timelimit_secs, bool from_the_top) {
+  Model &model(*model_ptr);
+  WLParams &wl_params(*wl_params_ptr);
+  MPIV &mpiv(*mpiv_ptr);
+  MPI_Status status;
+  IsTimeOut is_time_out(timelimit_secs);
+  std::vector<double> &ln_dos(*ln_dos_ptr);
   // Log file name.
   std::string log_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       ".json";
