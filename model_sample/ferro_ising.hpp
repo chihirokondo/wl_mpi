@@ -36,12 +36,13 @@ class FerroIsing {
   double val() const {return energy_;}
   void set_val(double energy_new) {energy_ = energy_new;}
   size_t num_bins() const {return num_bins_;}
+  size_t sweeps() const {return sweeps_;}
   double ene_min() const {return ene_min_;}
   double ene_max() const {return ene_max_;}
  private:
   const lattice::graph lat_;
   int site_;
-  size_t num_bins_;
+  size_t num_bins_, sweeps_;
   double ene_min_, ene_max_, energy_proposed_, energy_;
   std::vector<int> spin_config_;
   std::uniform_int_distribution<size_t> dist_;
@@ -50,6 +51,7 @@ class FerroIsing {
 
 FerroIsing::FerroIsing(lattice::graph lat)
     : lat_(lat),
+      sweeps_(lat.num_sites()),
       dist_(std::uniform_int_distribution<size_t>(0, lat_.num_sites()-1)) {
   ene_min_ = -2*(double)lat_.num_sites();
   ene_max_ = -ene_min_;

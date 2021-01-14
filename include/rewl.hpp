@@ -102,7 +102,7 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       return running_state;
     }
     for (int i=0; i<wl_params.check_flatness_every(); ++i) {
-      for (int j=0; j<wl_params.sweeps(); ++j) {
+      for (int j=0; j<model.sweeps(); ++j) {
         std::uniform_real_distribution<> uniform01{0., 1.};
         double val_new = model.Propose(engine);
         size_t old_i = histo_env.GetIndex(model.val());

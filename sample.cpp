@@ -40,7 +40,6 @@ int main(int argc, char *argv[]) {
   int length = 4;
   lattice::graph lat = lattice::graph::simple(dim, length);
   double condition_value = std::pow(2.0, (double)lat.num_sites());
-  int sweeps = lat.num_sites();
   FerroIsing model(lat);
   HistoEnvManager histo_env(model.ene_min(), model.ene_max(), model.num_bins(),
       true);
@@ -53,10 +52,9 @@ int main(int argc, char *argv[]) {
   // Replica exchange Wang-Landau (REWL) parameters.
   double overlap = 0.75; // 0<= overlap <= 1.
   int swap_every = 100;
-  WLParams wl_params(sweeps, check_flatness_every, lnf, lnfmin, flatness,
-      swap_every);
+  WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, swap_every);
   WindowManager window(histo_env, mpiv, overlap);
-  // Program control.
+  // Program control variables.
   double timelimit_secs = atof(argv[3]);
   bool from_the_top = atoi(argv[4]);
   // REWL routine.

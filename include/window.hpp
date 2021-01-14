@@ -17,10 +17,9 @@ class WindowManager {
   double valmax() const {return valmax_;}
   size_t imin() const {return imin_;}
   size_t imax() const {return imax_;}
-  size_t iwidth() const {return iwidth_;}
  private:
   double valmin_, valmax_;
-  size_t imin_, imax_, iwidth_;
+  size_t imin_, imax_;
 };
 
 
@@ -49,8 +48,7 @@ inline WindowManager::WindowManager(HistoEnvManager histo_env, MPIV mpiv,
     imax_ = histo_env.num_bins()-1;
     valmax_ = histo_env.maxval();
   }
-  iwidth_ = imax_ - imin_;
-  if (iwidth_ < 1) {
+  if (imax_-imin_ < 1) {
     std::string message = "ERROR: Width of the window is narrow ";
     message += "compared to bin width\n";
     throw std::out_of_range(message);

@@ -17,9 +17,22 @@ $ mkdir log
 ~~~
 
 ## Requirements
+### Modules
 This package needs OpenMPI and Json for Modern C++.
 The latter is included as the git submodule.
 Code for sample model depends on Eigen/Dense.
+### API of your own model
+```c++
+double YourModel::Propose(std::mt19937 &engine);
+void YourModel::Update();
+void YourModel::ExchangeConfig(int partner, MPI_Comm local_comm);
+void YourModel::StoreLog(std::ofstream *ofs_ptr);
+void YourModel::SetFromLog(std::ifstream &ifs);
+double YourModel::val();
+size_t YourModel::sweeps();
+void YourModel::set_val(double energy_new);
+```
+Implementation examples are in `model_sample/ferro_ising.hpp`.
 
 ## License
 The code is licensed under the [MIT License](https://opensource.org/licenses/MIT):

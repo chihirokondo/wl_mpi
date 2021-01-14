@@ -39,7 +39,6 @@ void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
   log_json["mpi_setting"]["num_procs_tot"] = mpiv.numprocs();
   log_json["mpi_setting"]["num_procs_per_window"] = mpiv.num_walkers_window();
   log_json["mpi_setting"]["exch_pattern_id"] = mpiv.exch_pattern_id();
-  log_json["wang_landau_params"]["sweeps"] = wl_params.sweeps();
   log_json["wang_landau_params"]["check_flatness_every"] =
       wl_params.check_flatness_every();
   log_json["wang_landau_params"]["lnf"] = wl_params.lnf();
@@ -72,8 +71,6 @@ bool check_log_json(const json &log_json, const MPIV &mpiv,
   if (log_json["mpi_setting"]["num_procs_per_window"].get<int>() !=
       mpiv.num_walkers_window()) return false;
   // WL parameters.
-  if (log_json["wang_landau_params"]["sweeps"].get<int>() !=
-      wl_params.sweeps()) return false;
   if (log_json["wang_landau_params"]["check_flatness_every"].get<int>() !=
       wl_params.check_flatness_every()) return false;
   if (log_json["wang_landau_params"]["lnf_min"].get<double>() !=
