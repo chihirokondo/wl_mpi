@@ -10,6 +10,7 @@ $ make
 ~~~
 
 ## How to use
+The single file `inlcude/wl_mpi.hpp` is required to use this package.
 When you use this package you need to create directory named log on your running
 directory.
 
@@ -27,19 +28,25 @@ If you would like to apply this package to your model, you need to prepare the f
 ```c++
 // Just propose not update.
 double YourModel::Propose(std::mt19937 &engine);
+
 // Accept propose and update the state.
 void YourModel::Update();
+
 // Exchange configuration with given partner in given communicator.
 void YourModel::ExchangeConfig(int partner, MPI_Comm local_comm);
+
 // Store intermediate state in the log file, which is necessary to restart the execution.
 void YourModel::StoreLog(std::ofstream *ofs_ptr);
+
 // Read intermediate state from the log file.
 void YourModel::SetFromLog(std::ifstream &ifs);
+
 // Return current value which belongs to searching space by the Wang-Landau method.
 // e.g. energy (case of estimating density of state).
 double YourModel::val();
 void YourModel::set_val(double val_new);
-// Return definition of 1MCS for your model.
+
+// Return definition of 1MCS on your model.
 size_t YourModel::sweeps();
 ```
 Implementation examples are in `model_sample/ferro_ising.hpp`.
