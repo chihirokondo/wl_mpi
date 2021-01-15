@@ -44,4 +44,5 @@ Makefile
 !CMakeLists.txt
 .vscode
 .DS_Store
+build/
 log/
