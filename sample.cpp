@@ -39,28 +39,26 @@ int main(int argc, char *argv[]) {
   int dim = 2;
   int length = 4;
   lattice::graph lat = lattice::graph::simple(dim, length);
-  double condition_value = std::pow(2.0, (double)lat.num_sites());
   FerroIsing model(lat);
   HistoEnvManager histo_env(model.ene_min(), model.ene_max(), model.num_bins(),
       true);
-  // Original Wang-Landau parameters.
+  // Replica exchange Wang-Landau (REWL) parameters.
   int check_flatness_every = 500;
   double lnf = 1.0;
   double lnfmin = 1e-8;
   double flatness = 0.95;
-  std::mt19937 engine(atoi(argv[2])+mpiv.myid());
-  // Replica exchange Wang-Landau (REWL) parameters.
   double overlap = 0.75; // 0<= overlap <= 1.
   int swap_every = 100;
-  WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, swap_every);
-  WindowManager window(histo_env, mpiv, overlap);
+  WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, overlap,
+      swap_every);
+  std::mt19937 engine(atoi(argv[2])+mpiv.myid());
   // Program control variables.
   double timelimit_secs = atof(argv[3]);
   bool from_the_top = atoi(argv[4]);
   // REWL routine.
   std::vector<double> ln_dos;
   RunningState running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env,
-      &wl_params, window, &mpiv, engine, timelimit_secs, from_the_top);
+      &wl_params, &mpiv, engine, timelimit_secs, from_the_top);
   int result = 0;
   if (running_state == RunningState::ERROR) {
     result = static_cast<int>(RunningState::ERROR);

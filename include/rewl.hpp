@@ -24,8 +24,8 @@
 template <typename Model>
 inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
-    double timelimit_secs, bool from_the_top);
+    MPIV *mpiv_ptr, std::mt19937 &engine, double timelimit_secs,
+    bool from_the_top);
 
 template <typename Model>
 inline RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
@@ -46,8 +46,8 @@ inline void take_ave_in_window_bc(std::vector<double> *ln_dos_ptr,
 template <typename Model>
 RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
-    double timelimit_secs, bool from_the_top) {
+    MPIV *mpiv_ptr, std::mt19937 &engine, double timelimit_secs,
+    bool from_the_top) {
   std::vector<double> &ln_dos(*ln_dos_ptr);
   // Initialize "ln_dos".
   ln_dos.clear();
@@ -57,6 +57,7 @@ RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   Model &model(*model_ptr);
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
+  WindowManager window(histo_env, mpiv, wl_params.overlap());
   // Call rewl routine.
   RunningState running_state = rewl_main<Model>(&ln_dos, &model, histo_env,
       &wl_params, window, &mpiv, engine, timelimit_secs, from_the_top);

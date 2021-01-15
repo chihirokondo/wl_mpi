@@ -46,6 +46,7 @@ void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
   log_json["wang_landau_params"]["lnf"] = wl_params.lnf();
   log_json["wang_landau_params"]["lnf_min"] = wl_params.lnfmin();
   log_json["wang_landau_params"]["flatness"] = wl_params.flatness();
+  log_json["wang_landau_params"]["overlap"] = wl_params.overlap();
   log_json["wang_landau_params"]["swap_every"] = wl_params.swap_every();
   json json_ln_dos(ln_dos);
   log_json["ln_dos"] = json_ln_dos;
@@ -80,6 +81,8 @@ bool check_log_json(const json &log_json, const MPIV &mpiv,
       wl_params.lnfmin()) return false;
   if (log_json["wang_landau_params"]["flatness"].get<double>() !=
       wl_params.flatness()) return false;
+  if (log_json["wang_landau_params"]["overlap"].get<double>() !=
+      wl_params.overlap()) return false;
   if (log_json["wang_landau_params"]["swap_every"].get<int>() !=
       wl_params.swap_every()) return false;
   // Size of ln_dos.
