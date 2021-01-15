@@ -18,16 +18,17 @@
 #include "wl_params.hpp"
 #include "log_for_json.hpp"
 #include "joint.hpp"
+#include "flags.hpp"
 
 
 template <typename Model>
-inline int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top);
 
 template <typename Model>
-inline int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+inline RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top);
@@ -43,7 +44,7 @@ inline void take_ave_in_window_bc(std::vector<double> *ln_dos_ptr,
 
 
 template <typename Model>
-int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top) {
@@ -57,25 +58,25 @@ int rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   WLParams &wl_params(*wl_params_ptr);
   MPIV &mpiv(*mpiv_ptr);
   // Call rewl routine.
-  int runnig_state = rewl_main<Model>(&ln_dos, &model, histo_env, &wl_params,
-      window, &mpiv, engine, timelimit_secs, from_the_top);
+  RunningState running_state = rewl_main<Model>(&ln_dos, &model, histo_env,
+      &wl_params, window, &mpiv, engine, timelimit_secs, from_the_top);
   // Post-processing.
-  if (runnig_state == 1) {
+  if (running_state == RunningState::ALL_FINISHED) {
     take_ave_in_window_bc(&ln_dos, mpiv);
     if (mpiv.num_windows() > 1) joint_ln_dos(&ln_dos, window, mpiv);
-  } else if ((runnig_state==255) && (mpiv.myid()==0)) {
+  } else if ((running_state==RunningState::ERROR) && (mpiv.myid()==0)) {
     std::cerr
         << "ERROR: Cannot restart the experiment.\n"
         << "       Last-time job was completely finished or "
         << "some conditions have unexpectedly been changed."
         << std::endl;
   }
-  return runnig_state;
+  return running_state;
 }
 
 
 template <typename Model>
-int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     const WindowManager &window, MPIV *mpiv_ptr, std::mt19937 &engine,
     double timelimit_secs, bool from_the_top) {
@@ -85,12 +86,12 @@ int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   MPI_Status status;
   IsTimeOut is_time_out(timelimit_secs);
   std::vector<double> &ln_dos(*ln_dos_ptr);
+  RunningState running_state;
   // Log file name.
   std::string log_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       ".json";
   std::string model_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       "_model_state";
-  int running_state = 0;
   std::vector<int> histogram(histo_env.num_bins(), 0);
   int swap_count_down = wl_params.swap_every();
   double lnf_slowest = wl_params.lnf();
@@ -116,7 +117,7 @@ int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     bool is_consistent;
     is_consistent = set_from_log_json(ifs_log, &mpiv, &wl_params, &ln_dos,
         &engine, &histogram, &swap_count_down, &lnf_slowest);
-    if (!is_consistent) return 255; // Error occured.
+    if (!is_consistent) return RunningState::ERROR;
     // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
     model.SetFromLog(ifs_model_log);
@@ -128,6 +129,7 @@ int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     MPI_Bcast(&should_stop, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     if (should_stop) {
       // Leave log files.
+      running_state = RunningState::ONGOING;
       std::ofstream ofs_log(log_file_name, std::ios::out);
       std::ofstream ofs_model_log(model_file_name, std::ios::out);
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
@@ -179,8 +181,8 @@ int rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     MPI_Allreduce(&lnf_tmp, &lnf_slowest, 1, MPI_DOUBLE, MPI_MAX,
         MPI_COMM_WORLD);
   } // End while(lnf_slowest>lnfmin) -> this terminates the simulation.
-  ++running_state;
   // Leave log files.
+  running_state = RunningState::ALL_FINISHED;
   std::ofstream ofs_log(log_file_name, std::ios::out);
   std::ofstream ofs_model_log(model_file_name, std::ios::out);
   write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,

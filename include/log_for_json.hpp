@@ -13,10 +13,11 @@
 #include <nlohmann/json.hpp>
 #include "mpi_setting.hpp"
 #include "wl_params.hpp"
+#include "flags.hpp"
 using json = nlohmann::json;
 
 
-inline void write_log_json(std::ofstream *ofs_ptr, int running_state,
+inline void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
     const MPIV &mpiv, const WLParams &wl_params,
     const std::vector<double> &ln_dos, const std::mt19937 &engine,
     const std::vector<int> &histogram, int swap_count_down, double lnf_slowest);
@@ -28,14 +29,15 @@ inline bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
     int *swap_count_down_ptr, double *lnf_slowest_ptr);
 
 
-void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
-    const WLParams &wl_params, const std::vector<double> &ln_dos,
-    const std::mt19937 &engine, const std::vector<int> &histogram,
-    int swap_count_down, double lnf_slowest) {
+void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
+    const MPIV &mpiv, const WLParams &wl_params,
+    const std::vector<double> &ln_dos, const std::mt19937 &engine,
+    const std::vector<int> &histogram, int swap_count_down,
+    double lnf_slowest) {
   std::ofstream &ofs(*ofs_ptr);
   json log_json;
   // Mapping.
-  log_json["last_time_state"] = running_state;
+  log_json["last_time_state"] = static_cast<int>(running_state);
   log_json["mpi_setting"]["num_procs_tot"] = mpiv.numprocs();
   log_json["mpi_setting"]["num_procs_per_window"] = mpiv.num_walkers_window();
   log_json["mpi_setting"]["exch_pattern_id"] = mpiv.exch_pattern_id();
@@ -64,7 +66,8 @@ void write_log_json(std::ofstream *ofs_ptr, int running_state, const MPIV &mpiv,
 bool check_log_json(const json &log_json, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos) {
   // Last state.
-  if (log_json["last_time_state"].get<int>() == 1) return false;
+  if (log_json["last_time_state"].get<int>() ==
+      static_cast<int>(RunningState::ALL_FINISHED)) return false;
   // MPI information.
   if (log_json["mpi_setting"]["num_procs_tot"].get<int>() !=
       mpiv.numprocs()) return false;

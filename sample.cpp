@@ -59,11 +59,13 @@ int main(int argc, char *argv[]) {
   bool from_the_top = atoi(argv[4]);
   // REWL routine.
   std::vector<double> ln_dos;
-  int running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env, &wl_params,
-      window, &mpiv, engine, timelimit_secs, from_the_top);
+  RunningState running_state = rewl<FerroIsing>(&ln_dos, &model, histo_env,
+      &wl_params, window, &mpiv, engine, timelimit_secs, from_the_top);
   int result = 0;
-  if (running_state == 255) result = running_state;
-  if ((running_state == 1) && (mpiv.myid() == 0)) {
+  if (running_state == RunningState::ERROR) {
+    result = static_cast<int>(RunningState::ERROR);
+  }
+  if ((running_state==RunningState::ALL_FINISHED) && (mpiv.myid()==0)) {
     std::ofstream ofs("ln_dos_jointed.dat", std::ios::out);
     ofs << "# ferro ising model\n";
     ofs << "# dim = " << dim << ", length = " << length << "\n";
