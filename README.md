@@ -26,27 +26,48 @@ Code for sample model depends on Eigen/Dense.
 ### Member functions you must prepare
 If you would like to apply this package to your model, you need to prepare the following member functions in your model class (`YourModel`).
 ```c++
-// Just propose not update.
+/**
+ * @brief Just propose not update.
+ * @param[in] engine random engine.
+ * @return double proposed Wang-Landau variable (e.g. energy).
+ */
 double YourModel::Propose(std::mt19937 &engine);
 
-// Accept propose and update the state.
+//! @brief Accept propose and update the state.
 void YourModel::Update();
 
-// Exchange informations with given partner in given communicator.
-// e.g. energy and configuration (case of estimating density of state).
+/**
+ * @brief Exchange informations with given partner in given communicator.
+ *        e.g. energy and spin configuration.
+ * @param[in] partner rank of exchange partner in the communicator (local_comm).
+ * @param[in] local_comm communicator in which the exchange is executed.
+ */
 void YourModel::Exchange(int partner, MPI_Comm local_comm);
 
-// Store intermediate state in the log file, which is necessary to restart the execution.
+/**
+ * @brief Store intermediate state in the log file,
+ *        which is necessary to restart the execution.
+ * @param[out] ofs_ptr pointer of output file stream.
+ */
 void YourModel::StoreLog(std::ofstream *ofs_ptr);
 
-// Read intermediate state from the log file.
+/**
+ * @brief Load intermediate state from the log file.
+ * @param[in] ifs reference to input file stream.
+ */
 void YourModel::SetFromLog(std::ifstream &ifs);
 
-// Return current value which belongs to searching space by the Wang-Landau method.
-// e.g. energy (case of estimating density of state).
+/**
+ * @brief Gettor.
+ * @return double current value of the Wang-Landau variable.
+ *         e.g. energy (case of estimating density of state).
+ */
 double YourModel::val();
 
-// Return definition of 1MCS on your model.
+/**
+ * @brief Gettor.
+ * @return size_t definition of 1MCS on your model.
+ */
 size_t YourModel::sweeps();
 ```
 Implementation examples are in `model_sample/ferro_ising.hpp`.
