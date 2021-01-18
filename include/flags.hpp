@@ -4,7 +4,8 @@
 
 enum class RunningState {
   ALL_FINISHED = 0,
-  ONGOING,
+  CONFIG_INITIALIZING,
+  REWL_RUNNING,
   ERROR
 };
 

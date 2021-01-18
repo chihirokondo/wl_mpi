@@ -26,7 +26,6 @@ inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
     MPIV *mpiv_ptr, std::mt19937 &engine, double timelimit_secs,
     bool from_the_top);
-
 template <typename Model>
 inline RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
@@ -87,7 +86,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   MPI_Status status;
   IsTimeOut is_time_out(timelimit_secs);
   std::vector<double> &ln_dos(*ln_dos_ptr);
-  RunningState running_state;
+  RunningState running_state = RunningState::CONFIG_INITIALIZING;
   // Log file name.
   std::string log_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       ".json";
@@ -125,12 +124,13 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   }
   // Main Wang-Landau routine.
   while (lnf_slowest > wl_params.lnfmin()) {
+    running_state = RunningState::REWL_RUNNING;
     // Check elapsed time.
+    // TODO: check here.
     bool should_stop = is_time_out();
     MPI_Bcast(&should_stop, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     if (should_stop) {
       // Leave log files.
-      running_state = RunningState::ONGOING;
       std::ofstream ofs_log(log_file_name, std::ios::out);
       std::ofstream ofs_model_log(model_file_name, std::ios::out);
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,

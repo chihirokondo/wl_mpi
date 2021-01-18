@@ -4,6 +4,8 @@
 
 #include <mpi.h>
 #include <cmath>
+#include <stdexcept>
+#include <string>
 #include <vector>
 #include "mpi_setting.hpp"
 #include "window.hpp"
@@ -60,11 +62,10 @@ void joint_ln_dos(std::vector<double> *ln_dos_ptr, const WindowManager &window,
 int search_joint_point(int imin, int imax, const std::vector<double> &ln_dos,
     const std::vector<double> &ln_dos_next_window) {
   // Search index of joint point by comparing gradient.
-  int iprevious = imin;
   double min_grad_diff;
   bool first_min_candidate = true;
-  int ijoint;
-  for (int i=iprevious+1; i<=imax; ++i) {
+  int ijoint = imin;
+  for (int i=imin+1, iprevious=imin; i<=imax; ++i) {
     if (ln_dos[iprevious] == 0.0) {
       ++iprevious;
     } else if (ln_dos[i] != 0.0) {
