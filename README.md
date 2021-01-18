@@ -18,6 +18,13 @@ $ cmake ..
 $ make
 ~~~
 
+### Example
+
+### Available functions and classes
+```c++
+hoge
+```
+
 ## Requirements
 ### Modules
 This package needs OpenMPI and Json for Modern C++.
