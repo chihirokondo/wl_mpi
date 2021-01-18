@@ -32,7 +32,8 @@ double YourModel::Propose(std::mt19937 &engine);
 // Accept propose and update the state.
 void YourModel::Update();
 
-// Exchange informations (e.g. energy and configuration) with given partner in given communicator.
+// Exchange informations with given partner in given communicator.
+// e.g. energy and configuration (case of estimating density of state).
 void YourModel::Exchange(int partner, MPI_Comm local_comm);
 
 // Store intermediate state in the log file, which is necessary to restart the execution.
