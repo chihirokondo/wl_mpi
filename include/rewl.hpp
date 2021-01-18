@@ -254,11 +254,7 @@ void exch_config(Model *model_ptr, int partner,
     MPI_Recv(&is_exch_accepted, 1, MPI_CXX_BOOL, partner, 3,
         mpiv.mpi_comm_exchblock(), &status);
   } // Now all process know whether the replica exchange will be executed.
-  if (is_exch_accepted) {
-    // Exchange configuration.
-    model.set_val(val_partner);
-    model.ExchangeConfig(partner, mpiv.mpi_comm_exchblock());
-  }
+  if (is_exch_accepted) model.Exchange(partner, mpiv.mpi_comm_exchblock());
 }
 
 

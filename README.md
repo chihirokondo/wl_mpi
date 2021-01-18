@@ -32,8 +32,8 @@ double YourModel::Propose(std::mt19937 &engine);
 // Accept propose and update the state.
 void YourModel::Update();
 
-// Exchange configuration with given partner in given communicator.
-void YourModel::ExchangeConfig(int partner, MPI_Comm local_comm);
+// Exchange informations (e.g. energy and configuration) with given partner in given communicator.
+void YourModel::Exchange(int partner, MPI_Comm local_comm);
 
 // Store intermediate state in the log file, which is necessary to restart the execution.
 void YourModel::StoreLog(std::ofstream *ofs_ptr);
@@ -44,7 +44,6 @@ void YourModel::SetFromLog(std::ifstream &ifs);
 // Return current value which belongs to searching space by the Wang-Landau method.
 // e.g. energy (case of estimating density of state).
 double YourModel::val();
-void YourModel::set_val(double val_new);
 
 // Return definition of 1MCS on your model.
 size_t YourModel::sweeps();

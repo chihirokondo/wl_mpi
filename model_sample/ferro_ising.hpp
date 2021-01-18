@@ -29,12 +29,11 @@ class FerroIsing {
     energy_ = energy_proposed_;
     spin_config_[site_] -= 2*spin_config_[site_];
   }
-  void ExchangeConfig(int partner, MPI_Comm local_comm);
+  void Exchange(int partner, MPI_Comm local_comm);
   void StoreLog(std::ofstream *ofs_ptr);
   void SetFromLog(std::ifstream &ifs);
   // Gettor and settor.
   double val() const {return energy_;}
-  void set_val(double energy_new) {energy_ = energy_new;}
   size_t num_bins() const {return num_bins_;}
   size_t sweeps() const {return sweeps_;}
   double ene_min() const {return ene_min_;}
@@ -62,10 +61,12 @@ FerroIsing::FerroIsing(lattice::graph lat)
 }
 
 
-void FerroIsing::ExchangeConfig(int partner, MPI_Comm local_comm) {
+void FerroIsing::Exchange(int partner, MPI_Comm local_comm) {
   MPI_Status status;
+  MPI_Sendrecv_replace(&energy_, 1, MPI_DOUBLE, partner, 1, partner, 1,
+      local_comm, &status);
   MPI_Sendrecv_replace(&spin_config_[0], spin_config_.size(), MPI_INT,
-      partner, 1, partner, 1, local_comm, &status);
+      partner, 2, partner, 2, local_comm, &status);
 }
 
 
