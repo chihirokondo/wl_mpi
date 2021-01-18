@@ -1,4 +1,14 @@
 # MPI parallelization of the Wang-Landau method
+- [How to use](#how-to-use)
+  - [How to build `sample.cpp`](#how-to-build-samplecpp)
+  - [Example](#example)
+  - [Available functions and classes](#available-functions-and-classes)
+- [Requirements](#requirements)
+  - [Modules](#modules)
+  - [Member functions you must prepare](#member-functions-you-must-prepare)
+- [License](#license)
+- [Thanks](#thanks)
+
 ## How to use
 The single file `inlcude/wl_mpi.hpp` is required to use this package.
 When you use this package you need to create directory named `log` on your running
