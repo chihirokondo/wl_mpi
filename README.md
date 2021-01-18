@@ -28,8 +28,8 @@ If you would like to apply this package to your model, you need to prepare the f
 ```c++
 /**
  * @brief Just propose not update.
- * @param[in] engine random engine.
- * @return double proposed Wang-Landau variable (e.g. energy).
+ * @param[in] engine the random engine.
+ * @return double the proposed Wang-Landau variable (e.g. energy).
  */
 double YourModel::Propose(std::mt19937 &engine);
 
@@ -37,36 +37,35 @@ double YourModel::Propose(std::mt19937 &engine);
 void YourModel::Update();
 
 /**
- * @brief Exchange informations with given partner in given communicator.
- *        e.g. energy and spin configuration.
- * @param[in] partner rank of exchange partner in the communicator (local_comm).
- * @param[in] local_comm communicator in which the exchange is executed.
+ * @brief Exchange informations with the given partner in the given communicator.
+ *        e.g. the energy and spin configuration.
+ * @param[in] partner the rank of the exchange partner in the communicator (local_comm).
+ * @param[in] local_comm the communicator in which the exchange is executed.
  */
 void YourModel::Exchange(int partner, MPI_Comm local_comm);
 
 /**
- * @brief Store intermediate state in the log file,
+ * @brief Store the intermediate state in the log file,
  *        which is necessary to restart the execution.
- * @param[out] ofs_ptr pointer of output file stream.
+ * @param[out] ofs_ptr the pointer of the output file stream.
  */
 void YourModel::StoreLog(std::ofstream *ofs_ptr);
 
 /**
- * @brief Load intermediate state from the log file.
- * @param[in] ifs reference to input file stream.
+ * @brief Load the intermediate state from the log file.
+ * @param[in] ifs the reference to the input file stream.
  */
 void YourModel::SetFromLog(std::ifstream &ifs);
 
 /**
  * @brief Gettor.
- * @return double current value of the Wang-Landau variable.
- *         e.g. energy (case of estimating density of state).
+ * @return double the current value of the Wang-Landau variable (e.g. the energy).
  */
 double YourModel::val();
 
 /**
  * @brief Gettor.
- * @return size_t definition of 1MCS on your model.
+ * @return size_t the definition of 1MCS on your model.
  */
 size_t YourModel::sweeps();
 ```
