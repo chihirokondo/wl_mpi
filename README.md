@@ -32,7 +32,7 @@ $ make
 ### Example
 TODO: Add sentenses.
 ```c++
-// Generate the MPIV-type object as "mpiv".
+// Generate the MPIV-type object named "mpiv".
 int numprocs, myid;
 MPI_Status status;
 MPI_Init(&argc, &argv);
@@ -41,16 +41,16 @@ MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 int num_wakkers_window = 2;
 MPIV mpiv(numprocs, myid, num_walkers_window);
 
-// Generate the object of your model which must satisfy requirements given below.
+// Generate the object of your model which satisfy requirements given below.
 YourModel model;
 
-// Generate the HistoEnvManager-type object as "histo_env".
+// Generate the HistoEnvManager-type object named "histo_env".
 double histo_min = 0.0;
 double histo_max = 9.0;
 size_t num_bins = 10;
 HistoEnvManager histo_env(histo_min, histo_max, num_bins, true);
 
-// Generate the WLParams-type object as "wl_params".
+// Generate the WLParams-type object named "wl_params".
 int check_flatness_every = 500;
 double lnf = 1.0;
 double lnfmin = 1e-8;
