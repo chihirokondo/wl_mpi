@@ -41,8 +41,7 @@ MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 int num_wakkers_window = 2;
 MPIV mpiv(numprocs, myid, num_walkers_window);
 
-// Generate the object of your model which must satisfy requirements
-// given below.
+// Generate the object of your model which must satisfy requirements given below.
 YourModel model;
 
 // Generate the HistoEnvManager-type object as "histo_env".
