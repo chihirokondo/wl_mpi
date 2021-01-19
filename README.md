@@ -1,4 +1,5 @@
 # MPI parallelization of the Wang-Landau method
+
 - [How to use](#how-to-use)
   - [How to build `sample.cpp`](#how-to-build-samplecpp)
   - [Example](#example)
@@ -29,11 +30,47 @@ $ make
 ~~~
 
 ### Example
-
-### Available functions and classes
+TODO: Add sentenses.
 ```c++
-hoge
+// Generate the MPIV type object as "mpiv".
+int numprocs, myid;
+MPI_Status status;
+MPI_Init(&argc, &argv);
+MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+int num_wakkers_window = 2;
+MPIV mpiv(numprocs, myid, num_walkers_window);
+// Generate the object of your model which must satisfy requirements
+// given below.
+YourModel model;
+// Generate the HistoEnvManager type object as "histo_env".
+double histo_min = 0.0;
+double histo_max = 9.0;
+size_t num_bins = 10;
+HistoEnvManager histo_env(histo_min, histo_max, num_bins, true);
+// Generate the WLParams type object as "wl_params".
+int check_flatness_every = 500;
+double lnf = 1.0;
+double lnfmin = 1e-8;
+double flatness = 0.95;
+double overlap = 0.75; // 0<= overlap <= 1.
+int swap_every = 100;
+WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, overlap,
+    swap_every);
+// Generate random engine according to the process rank.
+std::mt19937 engine(myid);
+// Set timelimit of this program as 60[sec].
+double timelimit_secs = 60;
+// Specify that this program run from the top with parameters given above.
+bool from_the_top = true;
+
+// Result will be written in "ln_dos" with the logarithmic scale.
+std::vector<double> ln_dos;
+RunningState running_state = rewl<YourModel>(&ln_dos, &model, histo_env,
+    &wl_params, &mpiv, engine, timelimit_secs, from_the_top);
 ```
+
+Note: When the whole REWL routine finishes, result of each devided window has been jonited and all-range result has been constructed. However the rank 0 process in MPI_COMM_WORLD is the only process that has the all-range results. Therefore if you would like to share this all-range result with the other (all) process(es), you have to send (broadcast) "ln_dos" to the other (all) process(es).
 
 ## Requirements
 ### Modules
