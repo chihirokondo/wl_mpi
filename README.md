@@ -30,7 +30,7 @@ $ make
 ~~~
 
 ### Example
-TODO: Add sentenses.
+TODO: Add explanations of available functions.
 ```c++
 // Generate the MPIV-type object named "mpiv".
 int numprocs, myid;
@@ -41,7 +41,7 @@ MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 int num_wakkers_window = 2;
 MPIV mpiv(numprocs, myid, num_walkers_window);
 
-// Generate the object of your model which satisfy requirements given below.
+// Generate the object of your model which satisfy requirements described below.
 YourModel model;
 
 // Generate the HistoEnvManager-type object named "histo_env".
