@@ -32,7 +32,7 @@ $ make
 ### Example
 TODO: Add sentenses.
 ```c++
-// Generate the MPIV type object as "mpiv".
+// Generate the MPIV-type object as "mpiv".
 int numprocs, myid;
 MPI_Status status;
 MPI_Init(&argc, &argv);
@@ -45,13 +45,13 @@ MPIV mpiv(numprocs, myid, num_walkers_window);
 // given below.
 YourModel model;
 
-// Generate the HistoEnvManager type object as "histo_env".
+// Generate the HistoEnvManager-type object as "histo_env".
 double histo_min = 0.0;
 double histo_max = 9.0;
 size_t num_bins = 10;
 HistoEnvManager histo_env(histo_min, histo_max, num_bins, true);
 
-// Generate the WLParams type object as "wl_params".
+// Generate the WLParams-type object as "wl_params".
 int check_flatness_every = 500;
 double lnf = 1.0;
 double lnfmin = 1e-8;
@@ -64,10 +64,10 @@ WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, overlap,
 // Generate random engine according to the process rank.
 std::mt19937 engine(myid);
 
-// Set timelimit of this program as 60[sec].
+// Set 60[sec] as the timelimit of this program.
 double timelimit_secs = 60;
 
-// Specify that this program run from the top with parameters given above.
+// Specify that this program start from the top with parameters given above.
 bool from_the_top = true;
 
 
