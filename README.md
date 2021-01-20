@@ -31,6 +31,74 @@ $ make
 
 ### Example
 TODO: Add explanations of available functions.
+
+```c++
+/**
+ * @brief
+ * @param[out] ln_dos_ptr
+ * @param[in] model_ptr
+ * @param[in] histo_env
+ * @param[in] wl_params_ptr
+ * @param[in] mpiv_ptr
+ * @param[in] engine
+ * @param[in] timelimit_secs
+ * @param[in] from_the_top
+ * @return RunningState
+ */
+template <typename Model>
+inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
+    const HistoEnvManager &histo_env, WLParams *wl_params_ptr, MPIV *mpiv_ptr,
+    std::mt19937 &engine, double timelimit_secs, bool from_the_top);
+```
+
+```c++
+/**
+ * @brief
+ * @param numprocs
+ * @param myid
+ * @param num_walkers_window
+ */
+MPIV::MPIV(int numprocs, int myid, int num_walkers_window);
+```
+
+```c++
+/**
+ * @brief
+ * @param check_flatness_every
+ * @param lnf
+ * @param lnfmin
+ * @param flatness
+ * @param overlap
+ * @param swap_every
+ */
+WLParams::WLParams(int check_flatness_every, double lnf, double lnfmin,
+    double flatness, double overlap, int swap_every);
+```
+
+```c++
+/**
+ * @brief
+ * @param min
+ * @param max
+ * @param num_bins
+ * @param centering
+ */
+HistoEnvManager::HistoEnvManager(double min, double max, size_t num_bins,
+    bool centering);
+```
+
+```c++
+/**
+ * @brief
+ */
+enum class RunningState {
+  ALL_FINISHED = 0,
+  CONFIG_INITIALIZING,
+  REWL_RUNNING,
+  ERROR
+};
+```
+
 ```c++
 // Generate the MPIV-type object named "mpiv".
 int numprocs, myid;

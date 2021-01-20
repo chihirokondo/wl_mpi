@@ -23,9 +23,8 @@
 
 template <typename Model>
 inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
-    const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
-    MPIV *mpiv_ptr, std::mt19937 &engine, double timelimit_secs,
-    bool from_the_top);
+    const HistoEnvManager &histo_env, WLParams *wl_params_ptr, MPIV *mpiv_ptr,
+    std::mt19937 &engine, double timelimit_secs, bool from_the_top);
 template <typename Model>
 inline RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr,
