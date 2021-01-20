@@ -53,23 +53,27 @@ inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
 
 ```c++
 /**
- * @brief
- * @param numprocs
- * @param myid
- * @param num_walkers_window
+ * @brief manage the environment of exchange and control the exchange.
+ * @param numprocs the total number of processes.
+ * @param myid the process rank in MPI_COMM_WORLD.
+ * @param num_walkers_window the number of the random walkers/window.
  */
 MPIV::MPIV(int numprocs, int myid, int num_walkers_window);
 ```
 
+NOTE: "numprocs" must be a multiple of "num_walkers_window".
+
 ```c++
 /**
- * @brief
- * @param check_flatness_every
- * @param lnf
- * @param lnfmin
- * @param flatness
- * @param overlap
- * @param swap_every
+ * @brief have parameters used in the replica exchange Wang-Landau method.
+ * @param check_flatness_every check flatness every "check_flatness_every" sweeps.
+ * @param lnf the initial value of the logarithm of the modification factor.
+ * @param lnfmin the final value of "lnf" is less than this value.
+ * @param flatness the rate used for judging the flatness of the histogram.
+ *        0 <= "flatness" <= 1.
+ * @param overlap the rate of the overlap between the neighboring windows.
+ *        0 <= "overlap" <= 1.
+ * @param swap_every exchange every "swap_every" sweeps.
  */
 WLParams::WLParams(int check_flatness_every, double lnf, double lnfmin,
     double flatness, double overlap, int swap_every);
@@ -77,19 +81,22 @@ WLParams::WLParams(int check_flatness_every, double lnf, double lnfmin,
 
 ```c++
 /**
- * @brief
- * @param min
- * @param max
- * @param num_bins
- * @param centering
+ * @brief manage the environment of the histogram.
+ *        e.g. correspondence between the index and value.
+ * @param min the minimal value of the axis of the histogram.
+ * @param max the maximal value of the axis of the histogram.
+ * @param num_bins the total number of the bins.
+ * @param centering whether set "min" ("max") as the central value in the bin.
  */
 HistoEnvManager::HistoEnvManager(double min, double max, size_t num_bins,
     bool centering);
 ```
 
+NOTE: You can specify whether you set "min" ("max") as the central value in the bin.
+
 ```c++
 /**
- * @brief
+ * @brief flags of the running state.
  */
 enum class RunningState {
   ALL_FINISHED = 0,
