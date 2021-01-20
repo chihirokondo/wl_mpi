@@ -2,8 +2,8 @@
 
 - [How to use](#how-to-use)
   - [How to build `sample.cpp`](#how-to-build-samplecpp)
+  - [Brief APIs](#brief-apis)
   - [Example](#example)
-  - [Available functions and classes](#available-functions-and-classes)
 - [Requirements](#requirements)
   - [Modules](#modules)
   - [Member functions you must prepare](#member-functions-you-must-prepare)
@@ -29,7 +29,7 @@ $ cmake ..
 $ make
 ~~~
 
-### Example
+# Brief APIs
 TODO: Add explanations of available functions.
 
 ```c++
@@ -98,6 +98,8 @@ enum class RunningState {
   ERROR
 };
 ```
+
+### Example
 
 ```c++
 // Generate the MPIV-type object named "mpiv".
