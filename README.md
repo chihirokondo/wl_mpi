@@ -29,7 +29,7 @@ $ cmake ..
 $ make
 ~~~
 
-# Brief APIs
+### Brief APIs
 TODO: Add explanations of available functions.
 
 ```c++
