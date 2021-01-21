@@ -187,7 +187,7 @@ RunningState running_state = rewl<YourModel>(&ln_dos, &model, histo_env,
     &wl_params, &mpiv, engine, timelimit_secs, from_the_top);
 ```
 
-### How to build and run `sample.cpp`
+### How to build `sample.cpp`
 You can build `sample.cpp` with
 
 ~~~shell-session
@@ -198,10 +198,11 @@ $ make
 ~~~
 
 If building `sample.cpp` is successed, `sample.app` is created in the `build` directory.
-Then you can run `sample.app` by the following commands.
+Then you can run the `sample.app` by the following command.
 ~~~shell-session
 $ mpirun -np [num_procs] sample.app [arg1] [arg2] [arg3] [arg4]
 ~~~
+where
 - num_procs: integer. Total number of the processes.
 - arg1: integer. Number of walkers per window.
 - arg2: integer. Random number seed.
