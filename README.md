@@ -33,7 +33,9 @@ $ make
 
 ### Brief APIs
 - rewl
+
 Basically you can use the parallelized Wang-Landau algorithm by using this function.
+
 ```c++
 /**
  * @brief the main function.
@@ -57,8 +59,8 @@ inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr, MPIV *mpiv_ptr,
     std::mt19937 &engine, double timelimit_secs, bool from_the_top);
 ```
-As you can see, this function depends on original types of object
- (`MPIV`, `WLParams`, and `HistoEnvManager`) and returns `enum class`
+As you can see, this function depends on the original types of the object
+ (`MPIV`, `WLParams`, and `HistoEnvManager`) and returns the `enum class`
   object (`RunningState`).
 These types are explained in the rest of this subsection.
 
@@ -74,7 +76,7 @@ In addition this function enables you to specify the timelimit of the program ac
 If the program quits on the way of the Wang-Landau algorithm, the intermediate state will be automatically stored under the `log` directory.
 You can restart it next time by setting the `from_the_top` argument to `false`.
 Otherwise, the program starts from the top as its name suggests.
-If you set `from_the_top` to `false` though the last-time job is all finished, this function returns error.
+If you set `from_the_top` to `false` though the last-time job is all finished, this function returns an error.
 In the case that you set `from_the_top` to `false` even though you change the condition of the experiment, the behaviour of this function is undefined and unpredictable.
 So be careful.
 
@@ -90,7 +92,7 @@ So be careful.
 MPIV::MPIV(int numprocs, int myid, int num_walkers_window);
 ```
 
-NOTE: "numprocs" must be a multiple of "num_walkers_window".
+Note that "numprocs" must be a multiple of "num_walkers_window".
 
 - WLParams
 
@@ -119,13 +121,13 @@ WLParams::WLParams(int check_flatness_every, double lnf, double lnfmin,
  * @param min the minimal value of the axis of the histogram.
  * @param max the maximal value of the axis of the histogram.
  * @param num_bins the total number of the bins.
- * @param centering whether set "min" ("max") as the central value in the bin.
+ * @param centering whether "min" ("max") is set as the central value in the bin.
  */
 HistoEnvManager::HistoEnvManager(double min, double max, size_t num_bins,
     bool centering);
 ```
 
-NOTE: You can specify whether you set "min" ("max") as the central value in the bin.
+You can specify whether "min" ("max") is set as the central value in the bin.
 
 - RunningState
 
@@ -140,6 +142,9 @@ enum class RunningState {
   ERROR
 };
 ```
+
+You can branch the post processing dependig on this flags
+ (see `sample.cpp` as an example).
 
 ### Example
 
