@@ -32,8 +32,6 @@ $ make
 ~~~
 
 ### Brief APIs
-TODO: Add explanations of available functions.
-
 - rewl
 Basically you can use the parallelized Wang-Landau algorithm by using this function.
 ```c++
