@@ -3,9 +3,9 @@
 This package is applicable to any models.
 
 - [How to use](#how-to-use)
-  - [How to build `sample.cpp`](#how-to-build-samplecpp)
   - [Brief APIs](#brief-apis)
   - [Example](#example)
+  - [How to build `sample.cpp`](#how-to-build-samplecpp)
 - [Requirements](#requirements)
   - [Modules](#modules)
   - [Member functions you must prepare](#member-functions-you-must-prepare)
@@ -19,16 +19,6 @@ directory.
 
 ~~~shell-session
 $ mkdir log
-~~~
-
-### How to build `sample.cpp`
-You can build `sample.cpp` with
-
-~~~shell-session
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make
 ~~~
 
 ### Brief APIs
@@ -81,8 +71,8 @@ In the case that you set `from_the_top` to `false` even though you change the co
 So be careful.
 
 
-Note that when the whole routine finishes, result of each devided window has been jonited and all-range result has been constructed. However the rank 0 process in `MPI_COMM_WORLD` is the only process that has the all-range result.
-Therefore if you would like to share this all-range result with the other (all) process(es), you have to send (broadcast) "ln_dos" to the other (all) process(es).
+Note that when the whole routine finishes, the result of each devided window has been jonited and the all-range result has been constructed. However the rank 0 process in `MPI_COMM_WORLD` is the only process that has the all-range result.
+Therefore if you would like to share this all-range result with the other (all) process(es), you have to send (broadcast) `ln_dos` to the other (all) process(es).
 
 - MPIV
 
@@ -196,6 +186,28 @@ std::vector<double> ln_dos;
 RunningState running_state = rewl<YourModel>(&ln_dos, &model, histo_env,
     &wl_params, &mpiv, engine, timelimit_secs, from_the_top);
 ```
+
+### How to build and run `sample.cpp`
+You can build `sample.cpp` with
+
+~~~shell-session
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+~~~
+
+If building `sample.cpp` is successed, `sample.app` is created in the `build` directory.
+Then you can run `sample.app` by the following commands.
+~~~shell-session
+$ mpirun -np [num_procs] sample.app [arg1] [arg2] [arg3] [arg4]
+~~~
+- num_procs: integer. Total number of the processes.
+- arg1: integer. Number of walkers per window.
+- arg2: integer. Random number seed.
+- arg3: double. Time limit (secs).
+- arg4: integer (bool). Should execute from the top.
+
 
 ## Requirements
 ### Modules
