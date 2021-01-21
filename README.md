@@ -35,14 +35,19 @@ TODO: Add explanations of available functions.
 ```c++
 /**
  * @brief the main function.
- * @param[out] ln_dos_ptr the result will be written here with logarithmic scale.
+ * @param[out] ln_dos_ptr the result will be written here
+ *             with logarithmic scale.
  * @param[in] model_ptr the pointer to the object of your model.
- * @param[in] histo_env this object maneges histogram environment. it will be explained below.
- * @param[in] wl_params_ptr this object manages parameters for this method. it will be explained below.
+ * @param[in] histo_env this object maneges histogram environment.
+ *            it will be explained below.
+ * @param[in] wl_params_ptr this object manages parameters for this method.
+ *            it will be explained below.
  * @param[in] mpiv_ptr this object manages exchange. it will be explained below.
  * @param[in] engine the reference to the random engine (std::mt19937).
  * @param[in] timelimit_secs the timelimit of the program [seconds].
- * @param[in] from_the_top whether you would like to run the program from the top or resume where the program quit for the timelimit last time.
+ * @param[in] from_the_top whether you would like to run the program
+ *            from the top or resume where the program quit for the timelimit
+ *            last time.
  * @return RunningState flags of the running state. it will be explained below.
  */
 template <typename Model>
