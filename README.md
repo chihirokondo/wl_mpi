@@ -197,7 +197,7 @@ $ cmake ..
 $ make
 ~~~
 
-If building `sample.cpp` is successed, `sample.app` is created in the `build` directory.
+If building the `sample.cpp` succeeds, `sample.app` is created in the `build` directory.
 Then you can run the `sample.app` by the following command.
 ~~~shell-session
 $ mpirun -np [num_procs] sample.app [arg1] [arg2] [arg3] [arg4]
