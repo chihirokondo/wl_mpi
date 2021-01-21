@@ -1,5 +1,7 @@
 # MPI parallelization of the Wang-Landau method
 
+This package is applicable to any models.
+
 - [How to use](#how-to-use)
   - [How to build `sample.cpp`](#how-to-build-samplecpp)
   - [Brief APIs](#brief-apis)
@@ -33,7 +35,7 @@ $ make
 TODO: Add explanations of available functions.
 
 - rewl
-
+Basically you can use the parallelized Wang-Landau algorithm by using this function.
 ```c++
 /**
  * @brief the main function.
@@ -57,6 +59,20 @@ inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     const HistoEnvManager &histo_env, WLParams *wl_params_ptr, MPIV *mpiv_ptr,
     std::mt19937 &engine, double timelimit_secs, bool from_the_top);
 ```
+As you can see, this function depends on original types of object
+ (`MPIV`, `WLParams`, and `HistoEnvManager`) and returns `enum class`
+  object (`RunningState`).
+These types are explained in the rest of this subsection.
+This function resizes `ln_dos` properly because its size must be identical with the size of the histogram, which is written in `histo_env`.
+Anyway you don't have to consider a proper size of "ln_dos".
+By preparing your model object with proper APIs (see [Member functions you must prepare](#member-functions-you-must-prepare)), you can apply this function to any models.
+In addition this function enables you to specify the timelimit of the program according to your limited resource of the computational time.
+If the program quits on the way of the Wang-Landau algorithm, the intermediate state will be automatically stored under the `log` directory.
+You can restart it next time by setting the `from_the_top` argument to `false`.
+Otherwise, the program starts from the top as its name suggests.
+If you set `from_the_top` to `false` though the last-time job is all finished, this function returns error.
+In the case that you set `from_the_top` to `false` even though you change the condition of the experiment, the behaviour of this function is undefined and unpredictable.
+So be careful.
 
 - MPIV
 
