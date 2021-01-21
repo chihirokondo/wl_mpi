@@ -20,19 +20,19 @@ using json = nlohmann::json;
 inline void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
     const MPIV &mpiv, const WLParams &wl_params,
     const std::vector<double> &ln_dos, const std::mt19937 &engine,
-    const std::vector<int> &histogram, int swap_count_down, double lnf_slowest);
+    const std::vector<int> &histogram, int exch_count_down, double lnf_slowest);
 inline bool check_log_json(const json &log_json, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos);
 inline bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
     WLParams *wl_params_ptr, std::vector<double> *ln_dos_ptr,
     std::mt19937 *engine_ptr, std::vector<int> *histogram_ptr,
-    int *swap_count_down_ptr, double *lnf_slowest_ptr);
+    int *exch_count_down_ptr, double *lnf_slowest_ptr);
 
 
 void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
     const MPIV &mpiv, const WLParams &wl_params,
     const std::vector<double> &ln_dos, const std::mt19937 &engine,
-    const std::vector<int> &histogram, int swap_count_down,
+    const std::vector<int> &histogram, int exch_count_down,
     double lnf_slowest) {
   std::ofstream &ofs(*ofs_ptr);
   json log_json;
@@ -47,7 +47,7 @@ void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
   log_json["wang_landau_params"]["lnf_min"] = wl_params.lnfmin();
   log_json["wang_landau_params"]["flatness"] = wl_params.flatness();
   log_json["wang_landau_params"]["overlap"] = wl_params.overlap();
-  log_json["wang_landau_params"]["swap_every"] = wl_params.swap_every();
+  log_json["wang_landau_params"]["exch_every"] = wl_params.exch_every();
   json json_ln_dos(ln_dos);
   log_json["ln_dos"] = json_ln_dos;
   std::ostringstream oss;
@@ -57,7 +57,7 @@ void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
   log_json["engine_state"] = engine_state;
   json json_histo(histogram);
   log_json["histogram"] = json_histo;
-  log_json["swap_count_down"] = swap_count_down;
+  log_json["exch_count_down"] = exch_count_down;
   log_json["lnf_slowest"] = lnf_slowest;
   // Output with pretty printing.
   ofs << std::setw(4) << log_json << std::endl;
@@ -83,8 +83,8 @@ bool check_log_json(const json &log_json, const MPIV &mpiv,
       wl_params.flatness()) return false;
   if (log_json["wang_landau_params"]["overlap"].get<double>() !=
       wl_params.overlap()) return false;
-  if (log_json["wang_landau_params"]["swap_every"].get<int>() !=
-      wl_params.swap_every()) return false;
+  if (log_json["wang_landau_params"]["exch_every"].get<int>() !=
+      wl_params.exch_every()) return false;
   // Size of ln_dos.
   if (log_json["ln_dos"].get<std::vector<double>>().size() !=
       ln_dos.size()) return false;
@@ -95,7 +95,7 @@ bool check_log_json(const json &log_json, const MPIV &mpiv,
 bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
     WLParams *wl_params_ptr, std::vector<double> *ln_dos_ptr,
     std::mt19937 *engine_ptr, std::vector<int> *histogram_ptr,
-    int *swap_count_down_ptr, double *lnf_slowest_ptr) {
+    int *exch_count_down_ptr, double *lnf_slowest_ptr) {
   if (!ifs) return false;
   MPIV &mpiv(*mpiv_ptr);
   WLParams &wl_params(*wl_params_ptr);
@@ -120,7 +120,7 @@ bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
   std::istringstream iss(log_json["engine_state"].get<std::string>());
   iss >> engine;
   histogram = log_json["histogram"].get<std::vector<int>>();
-  *swap_count_down_ptr = log_json["swap_count_down"].get<int>();
+  *exch_count_down_ptr = log_json["exch_count_down"].get<int>();
   *lnf_slowest_ptr = log_json["lnf_slowest"].get<double>();
   return true;
 }

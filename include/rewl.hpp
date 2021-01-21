@@ -92,7 +92,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   std::string model_file_name = "./log/proc" + std::to_string(mpiv.myid()) +
       "_model_state";
   std::vector<int> histogram(histo_env.num_bins(), 0);
-  int swap_count_down = wl_params.swap_every();
+  int exch_count_down = wl_params.exch_every();
   double lnf_slowest = wl_params.lnf();
   if (from_the_top) {
     // Initialize the configuration.
@@ -115,7 +115,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     std::ifstream ifs_log(log_file_name, std::ios::in);
     bool is_consistent;
     is_consistent = set_from_log_json(ifs_log, &mpiv, &wl_params, &ln_dos,
-        &engine, &histogram, &swap_count_down, &lnf_slowest);
+        &engine, &histogram, &exch_count_down, &lnf_slowest);
     if (!is_consistent) return RunningState::ERROR;
     // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
@@ -133,7 +133,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       std::ofstream ofs_log(log_file_name, std::ios::out);
       std::ofstream ofs_model_log(model_file_name, std::ios::out);
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-          histogram, swap_count_down, lnf_slowest);
+          histogram, exch_count_down, lnf_slowest);
       model.StoreLog(&ofs_model_log);
       return running_state;
     }
@@ -151,10 +151,10 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
         ln_dos[histo_env.GetIndex(model.val())] += wl_params.lnf();
         histogram[histo_env.GetIndex(model.val())] += 1;
       } // End 1 sweep.
-      --swap_count_down;
+      --exch_count_down;
       // Start RE.
-      if ((mpiv.num_windows()>1) && (swap_count_down==0)) {
-        swap_count_down = wl_params.swap_every();
+      if ((mpiv.num_windows()>1) && (exch_count_down==0)) {
+        exch_count_down = wl_params.exch_every();
         mpiv.switch_exch_pattern();
         if (mpiv.have_exch_partner()) {
           // Get exchange partner.     
@@ -186,7 +186,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   std::ofstream ofs_log(log_file_name, std::ios::out);
   std::ofstream ofs_model_log(model_file_name, std::ios::out);
   write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-      histogram, swap_count_down, lnf_slowest);
+      histogram, exch_count_down, lnf_slowest);
   model.StoreLog(&ofs_model_log);
   return running_state;
 }

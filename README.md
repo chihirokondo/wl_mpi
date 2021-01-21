@@ -34,16 +34,16 @@ TODO: Add explanations of available functions.
 
 ```c++
 /**
- * @brief
- * @param[out] ln_dos_ptr
- * @param[in] model_ptr
- * @param[in] histo_env
- * @param[in] wl_params_ptr
- * @param[in] mpiv_ptr
- * @param[in] engine
- * @param[in] timelimit_secs
- * @param[in] from_the_top
- * @return RunningState
+ * @brief the main function.
+ * @param[out] ln_dos_ptr the result will be written here with logarithmic scale.
+ * @param[in] model_ptr the pointer to the object of your model.
+ * @param[in] histo_env this object maneges histogram environment. it will be explained below.
+ * @param[in] wl_params_ptr this object manages parameters for this method. it will be explained below.
+ * @param[in] mpiv_ptr this object manages exchange. it will be explained below.
+ * @param[in] engine the reference to the random engine (std::mt19937).
+ * @param[in] timelimit_secs the timelimit of the program [seconds].
+ * @param[in] from_the_top whether you would like to run the program from the top or resume where the program quit for the timelimit last time.
+ * @return RunningState flags of the running state. it will be explained below.
  */
 template <typename Model>
 inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
@@ -73,10 +73,10 @@ NOTE: "numprocs" must be a multiple of "num_walkers_window".
  *        0 <= "flatness" <= 1.
  * @param overlap the rate of the overlap between the neighboring windows.
  *        0 <= "overlap" <= 1.
- * @param swap_every exchange every "swap_every" sweeps.
+ * @param exch_every exchange every "exch_every" sweeps.
  */
 WLParams::WLParams(int check_flatness_every, double lnf, double lnfmin,
-    double flatness, double overlap, int swap_every);
+    double flatness, double overlap, int exch_every);
 ```
 
 ```c++
@@ -133,9 +133,9 @@ double lnf = 1.0;
 double lnfmin = 1e-8;
 double flatness = 0.95;
 double overlap = 0.75; // 0<= overlap <= 1.
-int swap_every = 100;
+int exch_every = 100;
 WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, overlap,
-    swap_every);
+    exch_every);
 
 // Generate random engine according to the process rank.
 std::mt19937 engine(myid);

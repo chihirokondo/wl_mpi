@@ -48,9 +48,9 @@ int main(int argc, char *argv[]) {
   double lnfmin = 1e-8;
   double flatness = 0.95;
   double overlap = 0.75; // 0<= overlap <= 1.
-  int swap_every = 100;
+  int exch_every = 100;
   WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, overlap,
-      swap_every);
+      exch_every);
   std::mt19937 engine(atoi(argv[2])+mpiv.myid());
   // Program control variables.
   double timelimit_secs = atof(argv[3]);
