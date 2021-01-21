@@ -32,6 +32,8 @@ $ make
 ### Brief APIs
 TODO: Add explanations of available functions.
 
+- rewl
+
 ```c++
 /**
  * @brief the main function.
@@ -56,6 +58,8 @@ inline RunningState rewl(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     std::mt19937 &engine, double timelimit_secs, bool from_the_top);
 ```
 
+- MPIV
+
 ```c++
 /**
  * @brief manage the environment of exchange and control the exchange.
@@ -67,6 +71,8 @@ MPIV::MPIV(int numprocs, int myid, int num_walkers_window);
 ```
 
 NOTE: "numprocs" must be a multiple of "num_walkers_window".
+
+- WLParams
 
 ```c++
 /**
@@ -84,6 +90,8 @@ WLParams::WLParams(int check_flatness_every, double lnf, double lnfmin,
     double flatness, double overlap, int exch_every);
 ```
 
+- HistoEnvManager
+
 ```c++
 /**
  * @brief manage the environment of the histogram.
@@ -98,6 +106,8 @@ HistoEnvManager::HistoEnvManager(double min, double max, size_t num_bins,
 ```
 
 NOTE: You can specify whether you set "min" ("max") as the central value in the bin.
+
+- RunningState
 
 ```c++
 /**
