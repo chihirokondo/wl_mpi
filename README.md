@@ -80,6 +80,10 @@ If you set `from_the_top` to `false` though the last-time job is all finished, t
 In the case that you set `from_the_top` to `false` even though you change the condition of the experiment, the behaviour of this function is undefined and unpredictable.
 So be careful.
 
+
+Note that when the whole routine finishes, result of each devided window has been jonited and all-range result has been constructed. However the rank 0 process in `MPI_COMM_WORLD` is the only process that has the all-range result.
+Therefore if you would like to share this all-range result with the other (all) process(es), you have to send (broadcast) "ln_dos" to the other (all) process(es).
+
 - MPIV
 
 ```c++
@@ -127,7 +131,7 @@ HistoEnvManager::HistoEnvManager(double min, double max, size_t num_bins,
     bool centering);
 ```
 
-You can specify whether "min" ("max") is set as the central value in the bin.
+You can choose whether you set "min" ("max") as the central value in the bin or not by the argument `centering`.
 
 - RunningState
 
@@ -192,8 +196,6 @@ std::vector<double> ln_dos;
 RunningState running_state = rewl<YourModel>(&ln_dos, &model, histo_env,
     &wl_params, &mpiv, engine, timelimit_secs, from_the_top);
 ```
-
-Note: When the whole REWL routine finishes, result of each devided window has been jonited and all-range result has been constructed. However the rank 0 process in `MPI_COMM_WORLD` is the only process that has the all-range result. Therefore if you would like to share this all-range result with the other (all) process(es), you have to send (broadcast) "ln_dos" to the other (all) process(es).
 
 ## Requirements
 ### Modules
