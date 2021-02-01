@@ -66,11 +66,13 @@ int main(int argc, char *argv[]) {
   }
   if ((running_state==RunningState::ALL_FINISHED) && (mpiv.myid()==0)) {
     double ln_const = ln_dos[0] - std::log(2.0);
-    for (auto &ln_dos_i : ln_dos) ln_dos_i -= ln_const;
+    for (auto &ln_dos_i : ln_dos) {
+      if (ln_dos_i != 0.0) ln_dos_i -= ln_const;
+    }
     std::ofstream ofs("ln_dos_jointed.dat", std::ios::out);
     ofs << "# ferro ising model\n";
     ofs << "# dim = " << dim << ", length = " << length << "\n";
-    ofs << "# energy\t # log (density of states)\n";
+    ofs << "# energy\t # log_e (density of states)\n";
     for (size_t i=0; i<ln_dos.size(); ++i) {
       ofs << std::scientific << std::setprecision(15)
           << histo_env.GetVal(i, "mid") << "\t" << ln_dos[i] << "\n";
