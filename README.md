@@ -142,6 +142,9 @@ You can branch the post processing dependig on this flags
 
 ### Example
 
+A simple example to use this package is like this.
+If you want more practical example, see `sample.cpp`.
+
 ```c++
 // Generate the MPIV-type object named "mpiv".
 int numprocs, myid;
@@ -166,7 +169,7 @@ int check_flatness_every = 500;
 double lnf = 1.0;
 double lnfmin = 1e-8;
 double flatness = 0.95;
-double overlap = 0.75; // 0<= overlap <= 1.
+double overlap = 0.75;
 int exch_every = 100;
 WLParams wl_params(check_flatness_every, lnf, lnfmin, flatness, overlap,
     exch_every);
@@ -202,7 +205,7 @@ Then you can run the `sample.app` by the following command.
 ~~~shell-session
 $ mpirun -np [num_procs] sample.app [arg1] [arg2] [arg3] [arg4]
 ~~~
-where
+where,
 - num_procs: integer. Total number of the processes.
 - arg1: integer. Number of walkers per window.
 - arg2: integer. Random number seed.
