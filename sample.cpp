@@ -1,3 +1,4 @@
+#include <cmath>
 #include <mpi.h>
 #include <random>
 #include <iostream>
@@ -64,13 +65,15 @@ int main(int argc, char *argv[]) {
     result = static_cast<int>(RunningState::ERROR);
   }
   if ((running_state==RunningState::ALL_FINISHED) && (mpiv.myid()==0)) {
+    double ln_const = ln_dos[0] - std::log(2.0);
+    for (auto &ln_dos_i : ln_dos) ln_dos_i -= ln_const;
     std::ofstream ofs("ln_dos_jointed.dat", std::ios::out);
     ofs << "# ferro ising model\n";
     ofs << "# dim = " << dim << ", length = " << length << "\n";
     ofs << "# energy\t # log (density of states)\n";
     for (size_t i=0; i<ln_dos.size(); ++i) {
-      ofs << histo_env.GetVal(i, "mid") << "\t" << std::scientific
-          << std::setprecision(15) << ln_dos[i] << "\n";
+      ofs << std::scientific << std::setprecision(15)
+          << histo_env.GetVal(i, "mid") << "\t" << ln_dos[i] << "\n";
     }
     ofs << std::endl;
   }
