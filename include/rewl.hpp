@@ -124,8 +124,6 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   // Main Wang-Landau routine.
   while (lnf_slowest > wl_params.lnfmin()) {
     running_state = RunningState::REWL_RUNNING;
-    // Check elapsed time.
-    // TODO: check here.
     bool should_stop = is_time_out();
     MPI_Bcast(&should_stop, 1, MPI_CXX_BOOL, 0, MPI_COMM_WORLD);
     if (should_stop) {
@@ -163,7 +161,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
           exch_config<Model>(&model, partner, ln_dos, histo_env, window, mpiv,
               engine);
         }
-        MPI_Barrier(MPI_COMM_WORLD); // Is this necessary?
+        MPI_Barrier(MPI_COMM_WORLD);
         // Update histograms (independently of whether RE happened or not).
         ln_dos[histo_env.GetIndex(model.val())] += wl_params.lnf();
         histogram[histo_env.GetIndex(model.val())] += 1;

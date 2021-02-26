@@ -6,10 +6,12 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 message(STATUS "Build type: " ${CMAKE_BUILD_TYPE})
 
+add_executable(sample.app sample.cpp)
+
 ## OpenMPI
 find_package(MPI)
 if(MPI_FOUND)
-  include_directories(${MPI_INCLUDE_PATH})
+  target_include_directories(sample.app PUBLIC ${MPI_INCLUDE_PATH})
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_LINK_FLAGS}")
 endif(MPI_FOUND)
 ## eigen3
@@ -19,7 +21,6 @@ include(${EIGEN3_USE_FILE})
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(include/nlohmann_json_cmake_fetchcontent)
 
-add_executable(sample.app sample.cpp)
 target_link_libraries(sample.app
   ${MPI_CXX_LIBRARIES}
   nlohmann_json::nlohmann_json
