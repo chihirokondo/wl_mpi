@@ -20,20 +20,21 @@ using json = nlohmann::json;
 inline void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
     const MPIV &mpiv, const WLParams &wl_params,
     const std::vector<double> &ln_dos, const std::mt19937 &engine,
-    const std::vector<int> &histogram, int exch_count_down, double lnf_slowest);
+    const std::vector<int> &histogram, int exch_count_down, double lnf_slowest,
+    unsigned int mcs);
 inline bool check_log_json(const json &log_json, const MPIV &mpiv,
     const WLParams &wl_params, const std::vector<double> &ln_dos);
 inline bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
     WLParams *wl_params_ptr, std::vector<double> *ln_dos_ptr,
     std::mt19937 *engine_ptr, std::vector<int> *histogram_ptr,
-    int *exch_count_down_ptr, double *lnf_slowest_ptr);
+    int *exch_count_down_ptr, double *lnf_slowest_ptr, unsigned int *mcs_ptr);
 
 
 void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
     const MPIV &mpiv, const WLParams &wl_params,
     const std::vector<double> &ln_dos, const std::mt19937 &engine,
     const std::vector<int> &histogram, int exch_count_down,
-    double lnf_slowest) {
+    double lnf_slowest, unsigned int mcs) {
   std::ofstream &ofs(*ofs_ptr);
   json log_json;
   // Mapping.
@@ -48,6 +49,7 @@ void write_log_json(std::ofstream *ofs_ptr, RunningState running_state,
   log_json["wang_landau_params"]["flatness"] = wl_params.flatness();
   log_json["wang_landau_params"]["overlap"] = wl_params.overlap();
   log_json["wang_landau_params"]["exch_every"] = wl_params.exch_every();
+  log_json["mcs"] = mcs;
   json json_ln_dos(ln_dos);
   log_json["ln_dos"] = json_ln_dos;
   std::ostringstream oss;
@@ -95,7 +97,7 @@ bool check_log_json(const json &log_json, const MPIV &mpiv,
 bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
     WLParams *wl_params_ptr, std::vector<double> *ln_dos_ptr,
     std::mt19937 *engine_ptr, std::vector<int> *histogram_ptr,
-    int *exch_count_down_ptr, double *lnf_slowest_ptr) {
+    int *exch_count_down_ptr, double *lnf_slowest_ptr, unsigned int *mcs_ptr) {
   if (!ifs) return false;
   MPIV &mpiv(*mpiv_ptr);
   WLParams &wl_params(*wl_params_ptr);
@@ -122,6 +124,7 @@ bool set_from_log_json(std::ifstream &ifs, MPIV *mpiv_ptr,
   histogram = log_json["histogram"].get<std::vector<int>>();
   *exch_count_down_ptr = log_json["exch_count_down"].get<int>();
   *lnf_slowest_ptr = log_json["lnf_slowest"].get<double>();
+  *mcs_ptr = log_json["mcs"].get<unsigned int>();
   return true;
 }
 

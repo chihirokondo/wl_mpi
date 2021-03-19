@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
   MPIV mpiv(numprocs, myid, num_walkers_window);
   // Model dependent variables.
   int dim = 2;
-  int length = 8;
+  int length = 4;
   lattice::graph lat = lattice::graph::simple(dim, length);
   FerroIsing model(lat);
   HistoEnvManager histo_env(model.ene_min(), model.ene_max(), model.num_bins(),
@@ -84,8 +84,12 @@ int main(int argc, char *argv[]) {
     for (auto &ln_dos_i : ln_dos) {
       if (ln_dos_i != 0.0) ln_dos_i -= ln_const;
     }
-    json data_wl_json;
+    std::ifstream ifs("log/proc0.json", std::ios::in);
+    json log_json;
+    ifs >> log_json;
     // Mapping.
+    json data_wl_json;
+    data_wl_json["mcs"] = log_json["mcs"].get<unsigned int>();
     data_wl_json["mode"] = "test";
     data_wl_json["model"] = "classical ferro ising";
     data_wl_json["lattice_type"] = "square";
@@ -93,7 +97,7 @@ int main(int argc, char *argv[]) {
     data_wl_json["lattice_length_x"] = length;
     data_wl_json["lattice_length_y"] = length;
     data_wl_json["normalization"] = "first_bin";
-    data_wl_json["elapsed_time"] = elapsed_time;
+    data_wl_json["elapsed_time_secs"] = elapsed_time;
     data_wl_json["num_procs"] = mpiv.numprocs();
     data_wl_json["num_procs_per_window"] = mpiv.num_walkers_window();
     data_wl_json["num_windows"] = mpiv.num_windows();

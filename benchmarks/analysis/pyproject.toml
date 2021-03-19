@@ -6,6 +6,8 @@ authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+jupyterlab = "^3.0.9"
+matplotlib = "^3.3.4"
 
 [tool.poetry.dev-dependencies]
 

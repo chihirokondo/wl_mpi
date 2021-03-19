@@ -94,6 +94,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   std::vector<int> histogram(histo_env.num_bins(), 0);
   int exch_count_down = wl_params.exch_every();
   double lnf_slowest = wl_params.lnf();
+  unsigned int mcs = 0;
   if (from_the_top) {
     // Initialize the configuration.
     std::uniform_real_distribution<> uniform01{0., 1.};
@@ -115,7 +116,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
     std::ifstream ifs_log(log_file_name, std::ios::in);
     bool is_consistent;
     is_consistent = set_from_log_json(ifs_log, &mpiv, &wl_params, &ln_dos,
-        &engine, &histogram, &exch_count_down, &lnf_slowest);
+        &engine, &histogram, &exch_count_down, &lnf_slowest, &mcs);
     if (!is_consistent) return RunningState::ERROR;
     // Read model log file.
     std::ifstream ifs_model_log(model_file_name, std::ios::in);
@@ -131,7 +132,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
       std::ofstream ofs_log(log_file_name, std::ios::out);
       std::ofstream ofs_model_log(model_file_name, std::ios::out);
       write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-          histogram, exch_count_down, lnf_slowest);
+          histogram, exch_count_down, lnf_slowest, mcs);
       model.StoreLog(&ofs_model_log);
       return running_state;
     }
@@ -149,6 +150,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
         ln_dos[histo_env.GetIndex(model.val())] += wl_params.lnf();
         histogram[histo_env.GetIndex(model.val())] += 1;
       } // End 1 sweep.
+      ++mcs;
       --exch_count_down;
       // Start RE.
       if ((mpiv.num_windows()>1) && (exch_count_down==0)) {
@@ -184,7 +186,7 @@ RunningState rewl_main(std::vector<double> *ln_dos_ptr, Model *model_ptr,
   std::ofstream ofs_log(log_file_name, std::ios::out);
   std::ofstream ofs_model_log(model_file_name, std::ios::out);
   write_log_json(&ofs_log, running_state, mpiv, wl_params, ln_dos, engine,
-      histogram, exch_count_down, lnf_slowest);
+      histogram, exch_count_down, lnf_slowest, mcs);
   model.StoreLog(&ofs_model_log);
   return running_state;
 }

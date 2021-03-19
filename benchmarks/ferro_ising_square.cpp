@@ -117,14 +117,25 @@ void calc_dos(unsigned m, unsigned n) {
   exact_dos["lattice_length_x"] = m;
   exact_dos["lattice_length_y"] = n;
   // TODO: check precision.
-  std::vector<std::string> dos(2*m*n + 1, "0");
-  for (unsigned i = 0; i <= 2*m*n; i += 2) {
+  std::vector<std::string> dos(m*n + 1, "0");
+  for (unsigned i=0; i<=m*n; ++i) {
     std::stringstream ss;
-    ss << int_type(zmn[i] + 0.01);
+    ss << int_type(zmn[2*i] + 0.01);
     dos[i] = ss.str();
   }
   json json_dos(dos);
   exact_dos["dos"] = json_dos;
+  std::vector<double> ln_dos(m*n + 1, 0.0);
+  for (unsigned i=0; i<=m*n; ++i) {
+    int_type integerized_element = int_type(zmn[2*i] + 0.01);
+    if (integerized_element ==0) {
+      ln_dos[i] = 0.0;
+    } else {
+      ln_dos[i] = double(mp::log(real_type(integerized_element)));
+    }
+  }
+  json json_ln_dos(ln_dos);
+  exact_dos["ln_dos"] = json_ln_dos;
   std::string filename = "../analysis/data_exact/Lx" + std::to_string(m);
   filename += "Ly" + std::to_string(n) + ".json";
   std::ofstream ofs(filename, std::ios::out);
